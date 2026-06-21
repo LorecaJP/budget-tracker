@@ -1,12 +1,18 @@
 // 予算月（家計簿上の「月」）の計算。
-// 現状は開始日を定数で持つ。将来は settings.month_start_day から読む。
-export const MONTH_START_DAY = 25
+// 開始日は settings.month_start_day から読み込む。App 起動時に setMonthStartDay で
+// 反映し、未取得時は既定の 25 を使う。各関数は startDay を明示指定もできる。
+let monthStartDay = 25
+
+export function getMonthStartDay(): number { return monthStartDay }
+export function setMonthStartDay(day: number): void {
+  if (Number.isFinite(day) && day >= 1 && day <= 28) monthStartDay = Math.round(day)
+}
 
 // ある日付がどの予算月に属するかを返す（month は 1-12）
-export function budgetMonthOf(date: Date): { year: number; month: number } {
+export function budgetMonthOf(date: Date, startDay: number = monthStartDay): { year: number; month: number } {
   let y = date.getFullYear()
   let m = date.getMonth() + 1
-  if (date.getDate() < MONTH_START_DAY) {
+  if (date.getDate() < startDay) {
     m -= 1
     if (m === 0) { m = 12; y -= 1 }
   }
@@ -14,9 +20,9 @@ export function budgetMonthOf(date: Date): { year: number; month: number } {
 }
 
 // 予算月の範囲 [start, end)（end は翌予算月の開始日＝排他）
-export function budgetMonthRange(year: number, month: number): { start: Date; end: Date } {
-  const start = new Date(year, month - 1, MONTH_START_DAY)
-  const end = new Date(year, month, MONTH_START_DAY)
+export function budgetMonthRange(year: number, month: number, startDay: number = monthStartDay): { start: Date; end: Date } {
+  const start = new Date(year, month - 1, startDay)
+  const end = new Date(year, month, startDay)
   return { start, end }
 }
 

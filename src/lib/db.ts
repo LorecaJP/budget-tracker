@@ -138,3 +138,16 @@ export async function upsertSpecialExpense(s: Partial<SpecialExpense> & { id?: s
 export async function deleteSpecialExpense(id: string) {
   return supabase.from('special_expenses').delete().eq('id', id)
 }
+
+// ---------- 設定（1ユーザー1行） ----------
+export interface AppSettings { month_start_day: number; currency: string }
+export async function getSettings(): Promise<AppSettings | null> {
+  const { data } = await supabase.from('settings').select('month_start_day, currency').maybeSingle()
+  return (data as AppSettings) ?? null
+}
+export async function saveSettings(s: Partial<AppSettings>, userId: string) {
+  // 既存があれば更新、なければ作成（PK は user_id）
+  const { data } = await supabase.from('settings').select('user_id').maybeSingle()
+  if (data) return supabase.from('settings').update(s).eq('user_id', userId)
+  return supabase.from('settings').insert({ ...s, user_id: userId })
+}
