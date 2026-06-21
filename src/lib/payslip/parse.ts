@@ -45,6 +45,7 @@ export function parsePayslipText(text: string): ParsedPayslip {
 
   return {
     format: /サーティーンストラット/.test(text) ? 'thirteenstrut' : 'generic',
+    kind: 'salary',
     person,
     incomeCategory,
     payDate,
