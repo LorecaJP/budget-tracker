@@ -180,3 +180,24 @@ export async function listEmiSalaryYear(year: number): Promise<Transaction[]> {
   if (!emi) return []
   return listTransactions(`${year}-01-01`, `${year + 1}-01-01`, { type: 'income', categoryId: emi.id })
 }
+
+// 給与明細の追加項目（課税支給額・通勤手当・総労働時間）。扶養トラッカーの蓄積表示に使う。
+// テーブル payslip_details が未作成でも、取得は空配列にフォールバックして既存どおり動く。
+export interface PayslipDetail {
+  person: string; pay_date: string
+  gross: number | null; taxable: number | null; commute: number | null; work_minutes: number | null
+  transaction_id?: string | null
+}
+export async function upsertPayslipDetail(d: PayslipDetail) {
+  // person + pay_date で一意。user_id は列の default auth.uid() に任せる（transactions と同様）。
+  const { data } = await supabase.from('payslip_details').select('id')
+    .eq('person', d.person).eq('pay_date', d.pay_date).maybeSingle()
+  if (data?.id) return supabase.from('payslip_details').update(d).eq('id', data.id)
+  return supabase.from('payslip_details').insert(d)
+}
+export async function listPayslipDetails(year: number, person = 'えみ'): Promise<PayslipDetail[]> {
+  const { data, error } = await supabase.from('payslip_details').select('*')
+    .eq('person', person).gte('pay_date', `${year}-01-01`).lt('pay_date', `${year + 1}-01-01`)
+  if (error || !data) return []   // テーブル未作成なら空
+  return data as PayslipDetail[]
+}

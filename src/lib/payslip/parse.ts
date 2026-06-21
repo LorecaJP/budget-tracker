@@ -41,6 +41,19 @@ export function parsePayslipText(text: string): ParsedPayslip {
   const person = /絵巳/.test(text) ? 'えみ' : /優樹/.test(text) ? 'ゆうき' : null
   const incomeCategory = person === 'えみ' ? 'えみ給料' : person === 'ゆうき' ? 'ゆうき給料' : null
 
+  // 総労働時間（HH:MM）をラベル直後から拾い、分に変換する。
+  const minutesAfter = (label: string): number | null => {
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i] === label || lines[i].startsWith(label)) {
+        for (let j = i; j < Math.min(lines.length, i + 5); j++) {
+          const m = lines[j].match(/(\d{1,3})[:：](\d{2})/)
+          if (m) return Number(m[1]) * 60 + Number(m[2])
+        }
+      }
+    }
+    return null
+  }
+
   const gross = numberAfter('支給合計') ?? numberAfter('総支給額')
   const net = numberAfter('振込支給額') ?? numberAfter('差引支給額')
   const totalDeduction = numberAfter('控除合計') ?? 0
@@ -64,5 +77,7 @@ export function parsePayslipText(text: string): ParsedPayslip {
     deductions,
     base: numberAfter('基本給'),
     commute: numberAfter('通勤手当'),
+    taxable: numberAfter('課税支給額') ?? numberAfter('課税対象額'),
+    workMinutes: minutesAfter('総労働時間') ?? minutesAfter('労働時間'),
   }
 }

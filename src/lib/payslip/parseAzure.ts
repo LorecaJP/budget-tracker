@@ -116,5 +116,7 @@ export function parseAzureLayout(ar: any): ParsedPayslip {
     deductions,
     base: findInMap(tmap, '基本給'),
     commute: findInMap(tmap, '通勤'),
+    taxable: findInMap(tmap, '課税対象額') ?? findInMap(tmap, '課税支給額'),
+    workMinutes: null,
   }
 }
