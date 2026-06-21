@@ -1,5 +1,7 @@
-import * as pdfjs from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+// legacy ビルドを使う（モダンビルドは Promise.withResolvers 等の新しいJS機能を使い、
+// 少し古い iOS Safari 等で "undefined is not a function" になるため）。
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
 
 // pdf.js のワーカー（Vite が ?url で同梱）
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
