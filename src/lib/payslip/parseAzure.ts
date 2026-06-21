@@ -1,68 +1,87 @@
 import type { ParsedPayslip, PayslipDeduction } from './types'
 
 // Azure Document Intelligence (prebuilt-layout) の analyzeResult から給与項目を抽出する。
-// ⚠️ 実際の Azure 出力を1回確認してから精緻化する前提のベストエフォート版。
-// 取りこぼし・誤りはレビュー画面で人が修正できる（自動保存はしない）。
+// 実際の出力に合わせた実装:
+//  - 内訳（基本給・各控除）は tables のセルから取る。ラベルの「真下（行+1・同列）」、
+//    無ければ「右（同行・列+1）」に金額が入る構造。本文ではラベルと値が離れて並ぶため誤対応しやすい。
+//  - 合計系（総支給額・差引支給額）は表の外にあるので本文（ラベル＋同一行/次行の数値）から取る。
+//  - OCR はカンマを '.' と読むことがあるため、'.' と ',' の両方を桁区切りとして除去する。
 
 function toNum(s: string): number | null {
-  // OCR はカンマを '.' と誤読しがちなので両方を桁区切りとして除去
   const n = parseInt(s.replace(/[.,，\s]/g, ''), 10)
   return Number.isNaN(n) ? null : n
 }
-
-// analyzeResult から走査用のテキスト行を集める（本文＋表セル）
-function collectLines(ar: any): string[] {
-  const lines: string[] = []
-  if (typeof ar?.content === 'string') {
-    for (const l of ar.content.split(/\r?\n/)) { const t = l.trim(); if (t) lines.push(t) }
-  }
-  for (const t of ar?.tables ?? []) {
-    for (const c of t?.cells ?? []) {
-      const t2 = String(c?.content ?? '').trim()
-      if (t2) lines.push(t2)
-    }
-  }
-  return lines
+function isNumeric(s: string): boolean {
+  return /^[\d.,，\s]+$/.test(s.trim()) && /\d/.test(s)
 }
 
-const numRe = /^[\d.,，]+$/
-function numberNear(lines: string[], labels: string[]): number | null {
-  for (let i = 0; i < lines.length; i++) {
-    if (labels.some(lb => lines[i].includes(lb))) {
-      // 同じ行に数値が含まれていればそれを優先
-      const inline = lines[i].match(/([\d][\d.,，]*)\s*$/)
-      if (inline) { const v = toNum(inline[1]); if (v != null) return v }
-      // 後続の数行から最初の数値
-      for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
-        if (numRe.test(lines[j])) return toNum(lines[j])
+// 表セルから「ラベル → 金額」のマップを作る。
+function tableValueMap(ar: any): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const t of ar?.tables ?? []) {
+    const rc: number = t.rowCount ?? 0
+    const cc: number = t.columnCount ?? 0
+    const grid: string[][] = Array.from({ length: rc }, () => Array<string>(cc).fill(''))
+    for (const c of t.cells ?? []) {
+      const r: number = c.rowIndex ?? 0
+      const col: number = c.columnIndex ?? 0
+      if (r < rc && col < cc) grid[r][col] = String(c.content ?? '').replace(/\s+/g, ' ').trim()
+    }
+    for (let r = 0; r < rc; r++) {
+      for (let col = 0; col < cc; col++) {
+        const label = grid[r][col]
+        if (!label || isNumeric(label)) continue
+        const below = r + 1 < rc ? grid[r + 1][col] : ''
+        const right = col + 1 < cc ? grid[r][col + 1] : ''
+        const valStr = isNumeric(below) ? below : isNumeric(right) ? right : ''
+        if (valStr) {
+          const v = toNum(valStr)
+          if (v != null && !map.has(label)) map.set(label, v)
+        }
       }
+    }
+  }
+  return map
+}
+
+// 本文から「ラベル＋値」を探す（同一行末尾の数値、または次行の数値）。合計系に使う。
+function contentNumber(lines: string[], label: string): number | null {
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(label)) {
+      const m = lines[i].match(/([\d][\d.,，]*)\s*$/)
+      if (m) { const v = toNum(m[1]); if (v != null) return v }
+      if (i + 1 < lines.length && isNumeric(lines[i + 1])) return toNum(lines[i + 1])
     }
   }
   return null
 }
 
+function findInMap(map: Map<string, number>, keyword: string): number | null {
+  for (const [k, v] of map) if (k.includes(keyword)) return v
+  return null
+}
+
 // 和暦（令和）→ 西暦。令和N年 = 2018 + N。
-function wareki(lines: string[]): string | null {
-  const text = lines.join('\n')
-  // 「支給日 … 令和N年M月D日」を優先、なければ最初の令和日付
-  const around = text.match(/支給日[^\n]*?令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
-  const m = around ?? text.match(/令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
+function wareki(text: string): string | null {
+  const m = text.match(/支給日[^\n]*?令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
+    ?? text.match(/令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
   if (!m) return null
   const y = 2018 + Number(m[1])
   return `${y}-${String(Number(m[2])).padStart(2, '0')}-${String(Number(m[3])).padStart(2, '0')}`
 }
 
-export function parseAzureLayout(analyzeResult: any): ParsedPayslip {
-  const lines = collectLines(analyzeResult)
-  const text = lines.join('\n')
+export function parseAzureLayout(ar: any): ParsedPayslip {
+  const content: string = ar?.content ?? ''
+  const lines = content.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean)
+  const tmap = tableValueMap(ar)
 
-  const person = /優樹/.test(text) ? 'ゆうき' : /絵巳/.test(text) ? 'えみ' : null
-  const incomeCategory = person === 'ゆうき' ? 'ゆうき給料' : person === 'えみ' ? 'えみ給料' : null
+  const person = /優樹/.test(content) ? 'ゆうき' : /絵巳/.test(content) ? 'えみ' : null
 
-  const gross = numberNear(lines, ['総支給額', '支給合計'])
-  const net = numberNear(lines, ['差引支給額', '振込支給額'])
+  // 合計系は本文から
+  const gross = contentNumber(lines, '総支給額') ?? contentNumber(lines, '支給合計') ?? findInMap(tmap, '総支給')
+  const net = contentNumber(lines, '差引支給額') ?? contentNumber(lines, '振込支給額')
 
-  // 控除の内訳。社会保険料計（小計）と控除合計（総計）は重複計上を避けて除外。
+  // 内訳は表セルから（小計の 社会保険料計・課税対象額・控除合計 は拾わない）
   const dedDefs: { label: string; keys: string[] }[] = [
     { label: '健康保険', keys: ['健康保険'] },
     { label: '厚生年金', keys: ['厚生年金'] },
@@ -72,20 +91,21 @@ export function parseAzureLayout(analyzeResult: any): ParsedPayslip {
   ]
   const deductions: PayslipDeduction[] = []
   for (const d of dedDefs) {
-    const amt = numberNear(lines, d.keys)
+    let amt: number | null = null
+    for (const k of d.keys) { amt = findInMap(tmap, k); if (amt != null) break }
     if (amt && amt > 0) deductions.push({ label: d.label, amount: amt })
   }
 
   return {
     format: 'azure-layout',
     person,
-    incomeCategory,
-    payDate: wareki(lines),
-    periodLabel: (text.match(/令和\s*\d+\s*年\s*\d+\s*月度/) ?? [])[0]?.replace(/\s/g, '') ?? null,
+    incomeCategory: person === 'ゆうき' ? 'ゆうき給料' : person === 'えみ' ? 'えみ給料' : null,
+    payDate: wareki(content),
+    periodLabel: (content.match(/令和\s*\d+\s*年\s*\d+\s*月度/) ?? [])[0]?.replace(/\s/g, '') ?? null,
     gross,
     net,
     deductions,
-    base: numberNear(lines, ['基本給']),
-    commute: numberNear(lines, ['通勤費', '通勤手当']),
+    base: findInMap(tmap, '基本給'),
+    commute: findInMap(tmap, '通勤'),
   }
 }
