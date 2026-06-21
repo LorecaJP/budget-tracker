@@ -6,11 +6,12 @@
   import Home from './components/Home.svelte'
   import Transactions from './components/Transactions.svelte'
   import Analysis from './components/Analysis.svelte'
+  import YearSummary from './components/YearSummary.svelte'
   import SpecialExpenses from './components/SpecialExpenses.svelte'
   import Settings from './components/Settings.svelte'
   import AddTransaction from './components/AddTransaction.svelte'
 
-  type Tab = 'home' | 'tx' | 'analysis' | 'special' | 'settings'
+  type Tab = 'home' | 'tx' | 'analysis' | 'year' | 'special' | 'settings'
   let tab = $state<Tab>('home')
   let showAdd = $state(false)
   let key = $state(0)
@@ -27,6 +28,7 @@
     { id: 'home', label: 'ホーム', icon: '🏠' },
     { id: 'tx', label: '取引', icon: '📋' },
     { id: 'analysis', label: '分析', icon: '📊' },
+    { id: 'year', label: '年間', icon: '📈' },
     { id: 'special', label: '特別費', icon: '📅' },
     { id: 'settings', label: '設定', icon: '⚙️' },
   ]
@@ -48,6 +50,7 @@
         {#if tab === 'home'}<Home />
         {:else if tab === 'tx'}<Transactions />
         {:else if tab === 'analysis'}<Analysis />
+        {:else if tab === 'year'}<YearSummary />
         {:else if tab === 'special'}<SpecialExpenses />
         {:else if tab === 'settings'}<Settings />{/if}
       {/key}
