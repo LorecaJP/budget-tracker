@@ -141,9 +141,16 @@
     ]
     for (const d of deductions) {
       const amt = Math.round(Number(d.amount) || 0)
-      if (amt <= 0) continue
-      reqs.push(insertTransaction({ date: payDate, amount: amt, type: 'expense',
-        category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: d.label || '控除', source: 'ocr' }))
+      if (amt === 0) continue
+      if (amt > 0) {
+        // 控除 = tax区分の支出として記録
+        reqs.push(insertTransaction({ date: payDate, amount: amt, type: 'expense',
+          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: d.label || '控除', source: 'ocr' }))
+      } else {
+        // マイナス控除（年末調整還付など）＝ 還付。金額は正にして収入として記録する。
+        reqs.push(insertTransaction({ date: payDate, amount: -amt, type: 'income',
+          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: d.label || '還付', source: 'ocr' }))
+      }
     }
     const results = await Promise.all(reqs)
     saving = false
@@ -201,14 +208,20 @@
         </select>
       </label>
 
-      <div class="day-head"><span>控除（tax区分の支出として記録）</span></div>
+      <div class="day-head"><span>控除（プラス＝支出 / マイナス＝還付は収入）</span></div>
       {#each deductions as d, i (i)}
         <div class="ded-row">
           <input class="ded-label" type="text" bind:value={d.label} placeholder="項目名（例: 所得税）" />
           <input class="budget-input" type="number" inputmode="numeric" bind:value={d.amount} />
           <button class="link" onclick={() => removeDeduction(i)}>削除</button>
         </div>
-        <p class="ded-cat">→ {catByName[d.label] ? d.label + '（tax）' : '未マッチ：区分なしで記録'}</p>
+        <p class="ded-cat">
+          {#if Number(d.amount) < 0}
+            → マイナス＝還付。<b>収入</b>として記録します（差引支給額に加算）。
+          {:else}
+            → {catByName[d.label] ? d.label + '（tax）' : '未マッチ：区分なしで記録'}
+          {/if}
+        </p>
       {/each}
       <button class="add-inline" onclick={addDeduction}>＋ 控除を追加</button>
 
