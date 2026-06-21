@@ -1,10 +1,11 @@
-// legacy ビルドを使う（モダンビルドは Promise.withResolvers 等の新しいJS機能を使い、
-// 少し古い iOS Safari 等で "undefined is not a function" になるため）。
+// legacy ビルドを使う（互換性のため）。
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
-import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'
+// ワーカーは Vite の ?worker で「バンドル」して生成する。?url で生URLを渡すと、
+// ワーカー内部の動的 import()/import.meta.url が解決できず Safari 等で
+// "Importing a module script failed" になるため、workerPort 方式にする。
+import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker'
 
-// pdf.js のワーカー（Vite が ?url で同梱）
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
+pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker()
 
 export interface ExtractResult {
   text: string
