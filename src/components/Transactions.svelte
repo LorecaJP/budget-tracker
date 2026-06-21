@@ -29,6 +29,9 @@
       if (!map.has(t.date)) map.set(t.date, [])
       map.get(t.date)!.push(t)
     }
+    // 各日付内は 収入 → 振替 → 支出 の順（同種は元の並び＝新しい順を維持）
+    const rank = (t: Transaction) => (t.type === 'income' ? 0 : t.type === 'transfer' ? 1 : 2)
+    for (const list of map.values()) list.sort((a, b) => rank(a) - rank(b))
     return [...map.entries()]
   })
 

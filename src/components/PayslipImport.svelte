@@ -29,7 +29,6 @@
   let deductions = $state<PayslipDeduction[]>([])
   let memo = $state('')
   let statedNet = $state<number | null>(null)   // 明細記載の差引支給額（計算値との照合用）
-  let dateNote = $state<string | null>(null)    // 支給日を境界調整した場合の説明
   let kind = $state<'salary' | 'bonus'>('salary')
 
   const totalDeduction = $derived(deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0))
@@ -51,35 +50,28 @@
     catByName = Object.fromEntries(cats.map(c => [c.name, c]))
   })
 
-  // 計上日を25日始まりの境界に合わせて補正する（いずれも手修正可）。
-  //  - 給料（25日払い）: 休日で前の平日（22〜24日）に前倒しされると前月予算月に落ちるので25日に。
-  //  - 賞与（20日払い）: 25日始まりだと前月予算月に落ちるので、同月の25日給料と同じ月になるよう25日に。
-  function normalizePayday(iso: string, k: 'salary' | 'bonus'): { date: string; note: string | null } {
+  // 計上日を25日始まりの境界に合わせて補正する（手修正可）。
+  //  - 給料（25日払い）: 休日で前の平日（22〜24日）に前倒しされたら25日に。
+  //  - 賞与（20日払い）: 同月の25日給料と同じ予算月になるよう25日に。
+  function normalizePayday(iso: string, k: 'salary' | 'bonus'): string {
     const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-    if (!m) return { date: iso, note: null }
+    if (!m) return iso
     const day = Number(m[3])
     const to25 = `${m[1]}-${m[2]}-25`
-    if (k === 'bonus') {
-      if (day !== 25) return { date: to25, note: `賞与の支給日 ${iso} を、同月の25日給料と同じ予算月になるよう計上日を25日に調整しました。` }
-      return { date: iso, note: null }
-    }
-    if (day >= 22 && day <= 24) {
-      return { date: to25, note: `支給日 ${iso} は「25日払いの休日前倒し」と判断し、予算月がずれないよう計上日を25日に調整しました。` }
-    }
-    return { date: iso, note: null }
+    if (k === 'bonus') return day !== 25 ? to25 : iso
+    if (day >= 22 && day <= 24) return to25
+    return iso
   }
 
   function applyParsed(p: ParsedPayslip) {
     parsed = p
     kind = p.kind
-    const norm = p.payDate ? normalizePayday(p.payDate, p.kind) : { date: '', note: null }
-    payDate = norm.date
-    dateNote = norm.note
+    payDate = p.payDate ? normalizePayday(p.payDate, p.kind) : ''
     person = p.person ?? ''
     gross = p.gross
     statedNet = p.net
     deductions = p.deductions.map(d => ({ ...d }))
-    memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '', norm.note ? `入金${p.payDate}` : '']
+    memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '']
       .filter(Boolean).join(' / ')
     const bank = accounts.find(a => a.type === 'bank') ?? accounts[0]
     if (bank) accountId = bank.id
@@ -175,7 +167,6 @@
       {#if needsOcr}
         <p class="hint">スキャンPDF（テキストなし）です。クラウドOCR（Azure）で読み取ります。<br />{fileName}</p>
         <button class="add-inline" onclick={runOcr} disabled={ocrRunning}>{ocrRunning ? 'OCR実行中…（数秒かかります）' : '☁️ クラウドOCRで読み取る'}</button>
-        <p class="hint">※ Azure の設定と Edge Function（payslip-ocr）のデプロイが必要です。未設定だとエラーになります。</p>
         {#if error}<p class="msg error">{error}</p>{/if}
       {:else}
         <p class="hint">給与明細のPDFを選ぶと、項目を自動で読み取ります（テキストPDFは即時、スキャンはクラウドOCR）。</p>
@@ -190,18 +181,15 @@
       {#if dupWarning}<p class="msg notice">⚠️ {dupWarning}</p>{/if}
       <p class="hint">{fileName}{parsed.periodLabel ? ' · ' + parsed.periodLabel : ''} · 様式 {parsed.format}</p>
 
-      <div class="row2">
-        <label class="field"><span>支給日</span><input type="date" bind:value={payDate} /></label>
-        <label class="field"><span>人</span>
-          <select bind:value={person}>
-            <option value="">指定なし</option>
-            <option value="ゆうき">ゆうき</option>
-            <option value="えみ">えみ</option>
-          </select>
-        </label>
-      </div>
+      <label class="field"><span>支給日</span><input type="date" bind:value={payDate} /></label>
+      <label class="field"><span>人</span>
+        <select bind:value={person}>
+          <option value="">指定なし</option>
+          <option value="ゆうき">ゆうき</option>
+          <option value="えみ">えみ</option>
+        </select>
+      </label>
       {#if budgetMonth}<p class="hint">計上先：<b>{budgetMonth}の予算月</b></p>{/if}
-      {#if dateNote}<p class="msg notice">📅 {dateNote}</p>{/if}
 
       <label class="field"><span>総支給額（収入 → {incomeCatName || '未指定カテゴリ'}）</span>
         <input type="number" inputmode="numeric" bind:value={gross} />
