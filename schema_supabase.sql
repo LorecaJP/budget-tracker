@@ -120,6 +120,25 @@ create table settings (
 --   alter table settings add column if not exists emi_year_cap    integer not null default 1030000;
 -- ※未追加でもアプリは既定値（1180 / 1030000）で動作する（getFuyouConfig がフォールバック）。
 
+-- ---------- 給与明細の追加項目（扶養トラッカーの蓄積用・後から追加した表） ----------
+-- 取込時に 課税支給額・通勤手当・総労働時間(分) を保存する。person + pay_date で一意（再取込で更新）。
+-- 既存DBには下記をそのまま実行（未作成でもアプリは動く＝扶養タブは総支給のみ表示・取込の保存は黙ってスキップ）。
+create table if not exists payslip_details (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  person         text not null,
+  pay_date       date not null,
+  gross          integer,
+  taxable        integer,                          -- 課税支給額（手当・税の基準。通勤手当を除く／残業代は含む）
+  commute        integer,                          -- 通勤手当（非課税）
+  work_minutes   integer,                          -- 総労働時間（分。週20時間判定の材料）
+  transaction_id uuid references transactions(id) on delete set null,
+  created_at     timestamptz not null default now(),
+  unique (user_id, person, pay_date)
+);
+alter table payslip_details enable row level security;
+create policy "own rows" on payslip_details for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ============================================================
 -- Row Level Security（本人のデータのみアクセス可）
 -- ============================================================

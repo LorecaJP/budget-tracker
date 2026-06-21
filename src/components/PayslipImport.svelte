@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { yen, ymd, budgetMonthOf } from '../lib/month'
-  import { listAccounts, listCategories, listTransactions, insertTransaction } from '../lib/db'
+  import { listAccounts, listCategories, listTransactions, insertTransaction, upsertPayslipDetail } from '../lib/db'
   import type { Account, Category } from '../lib/types'
   import type { ParsedPayslip, PayslipDeduction } from '../lib/payslip/types'
 
@@ -30,6 +30,24 @@
   let memo = $state('')
   let statedNet = $state<number | null>(null)   // 明細記載の差引支給額（計算値との照合用）
   let kind = $state<'salary' | 'bonus'>('salary')
+  // 扶養トラッカー用の追加項目（課税支給額・通勤手当・総労働時間）
+  let taxable = $state<number | null>(null)
+  let commute = $state<number | null>(null)
+  let workTime = $state('')                      // 「HH:MM」または時間数で入力
+
+  // 「HH:MM」/「86」/「86.5」などを分に変換
+  function parseWorkMinutes(s: string): number | null {
+    const t = s.trim()
+    if (!t) return null
+    const c = t.match(/^(\d{1,3})[:：](\d{1,2})$/)
+    if (c) return Number(c[1]) * 60 + Number(c[2])
+    const n = Number(t.replace(/[^\d.]/g, ''))
+    return Number.isFinite(n) ? Math.round(n * 60) : null
+  }
+  function fmtWorkTime(min: number | null): string {
+    if (min == null) return ''
+    return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`
+  }
 
   const totalDeduction = $derived(deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0))
   const net = $derived((Number(gross) || 0) - totalDeduction)
@@ -73,6 +91,9 @@
     deductions = p.deductions.map(d => ({ ...d }))
     memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '']
       .filter(Boolean).join(' / ')
+    taxable = p.taxable
+    commute = p.commute
+    workTime = fmtWorkTime(p.workMinutes)
     const bank = accounts.find(a => a.type === 'bank') ?? accounts[0]
     if (bank) accountId = bank.id
   }
@@ -153,9 +174,18 @@
       }
     }
     const results = await Promise.all(reqs)
-    saving = false
     const failed = results.find(r => r.error)
-    if (failed?.error) { error = '登録に失敗しました：' + failed.error.message; return }
+    if (failed?.error) { saving = false; error = '登録に失敗しました：' + failed.error.message; return }
+    // 扶養トラッカー用の追加項目を保存（テーブル未作成でも本体登録は成功させる＝ベストエフォート）
+    if (kind === 'salary' && p) {
+      await upsertPayslipDetail({
+        person: p, pay_date: payDate, gross: Math.round(gross),
+        taxable: taxable != null ? Math.round(taxable) : null,
+        commute: commute != null ? Math.round(commute) : null,
+        work_minutes: parseWorkMinutes(workTime),
+      })
+    }
+    saving = false
     onsaved()
   }
 </script>
@@ -207,6 +237,13 @@
           {#each accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
         </select>
       </label>
+
+      <div class="day-head"><span>扶養トラッカー用（えみの集計・任意）</span></div>
+      <div class="row2">
+        <label class="field"><span>課税支給額</span><input type="number" inputmode="numeric" bind:value={taxable} /></label>
+        <label class="field"><span>通勤手当</span><input type="number" inputmode="numeric" bind:value={commute} /></label>
+      </div>
+      <label class="field"><span>総労働時間（例 86:21）</span><input type="text" inputmode="numeric" bind:value={workTime} placeholder="HH:MM" /></label>
 
       <div class="day-head"><span>控除（プラス＝支出 / マイナス＝還付は収入）</span></div>
       {#each deductions as d, i (i)}

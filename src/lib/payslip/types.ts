@@ -15,5 +15,7 @@ export interface ParsedPayslip {
   net: number | null               // 差引支給額 / 振込支給額
   deductions: PayslipDeduction[]   // 控除の内訳（tax区分の支出として記録）
   base: number | null              // 基本給（メモ用）
-  commute: number | null           // 通勤手当（メモ用）
+  commute: number | null           // 通勤手当（メモ用 / 扶養トラッカー：非課税なので税・106万には不算入）
+  taxable: number | null           // 課税支給額（扶養トラッカー：103万手当・税の正しい基準）
+  workMinutes: number | null       // 総労働時間（分。扶養トラッカー：週20時間判定の材料）
 }
