@@ -151,3 +151,32 @@ export async function saveSettings(s: Partial<AppSettings>, userId: string) {
   if (data) return supabase.from('settings').update(s).eq('user_id', userId)
   return supabase.from('settings').insert({ ...s, user_id: userId })
 }
+
+// ---------- 扶養トラッカー（えみ）----------
+// 設定は settings テーブルに相乗り（emi_hourly_wage / emi_year_cap）。
+// 列が未追加でも動くよう、取得はエラー時に既定値へフォールバックする。
+export interface FuyouConfig { hourly_wage: number; year_cap: number }
+const FUYOU_DEFAULT: FuyouConfig = { hourly_wage: 1180, year_cap: 1060000 }   // 時給1,180円 / 106万円
+
+export async function getFuyouConfig(): Promise<FuyouConfig> {
+  const { data, error } = await supabase.from('settings').select('emi_hourly_wage, emi_year_cap').maybeSingle()
+  if (error || !data) return { ...FUYOU_DEFAULT }
+  const d = data as { emi_hourly_wage: number | null; emi_year_cap: number | null }
+  return {
+    hourly_wage: d.emi_hourly_wage ?? FUYOU_DEFAULT.hourly_wage,
+    year_cap: d.emi_year_cap ?? FUYOU_DEFAULT.year_cap,
+  }
+}
+export async function saveFuyouConfig(c: FuyouConfig, userId: string) {
+  const payload = { emi_hourly_wage: Math.round(c.hourly_wage), emi_year_cap: Math.round(c.year_cap) }
+  const { data } = await supabase.from('settings').select('user_id').maybeSingle()
+  if (data) return supabase.from('settings').update(payload).eq('user_id', userId)
+  return supabase.from('settings').insert({ ...payload, user_id: userId })
+}
+// 指定した暦年(1/1〜12/31)の「えみ給料」収入を取得（支給日ベース）
+export async function listEmiSalaryYear(year: number): Promise<Transaction[]> {
+  const cats = await listCategories(true)
+  const emi = cats.find(c => c.name === 'えみ給料')
+  if (!emi) return []
+  return listTransactions(`${year}-01-01`, `${year + 1}-01-01`, { type: 'income', categoryId: emi.id })
+}
