@@ -2,11 +2,11 @@
   import { onMount } from 'svelte'
   import { supabase } from '../lib/supabase'
   import { session } from '../lib/session'
-  import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen, MONTH_START_DAY } from '../lib/month'
+  import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen, getMonthStartDay, setMonthStartDay } from '../lib/month'
   import {
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
-    listBudgets, setBudget, listTransactions, type Recurring, type Budget,
+    listBudgets, setBudget, listTransactions, saveSettings, type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -16,6 +16,20 @@
   let categories = $state<Category[]>([])
 
   const DIVS: Division[] = ['income', 'tax', 'saving', 'fixed', 'variable']
+
+  // --- 全般（月の開始日） ---
+  const DAYS = Array.from({ length: 28 }, (_, i) => i + 1)
+  let startDay = $state(getMonthStartDay())
+  let startMsg = $state('')
+  async function saveStartDay(d: number) {
+    if (d === startDay) return
+    const { error } = await saveSettings({ month_start_day: d }, $session!.user.id)
+    if (error) { startMsg = '保存に失敗しました：' + error.message; return }
+    startDay = d
+    setMonthStartDay(d)
+    startMsg = '保存しました。反映のため再読み込みします…'
+    setTimeout(() => location.reload(), 600)
+  }
 
   async function reload() {
     accounts = await listAccounts(true)
@@ -79,12 +93,23 @@
     postMsg = '計上中…'
     const r = budgetMonthRange(bm.year, bm.month)
     const existing = await listTransactions(ymd(r.start), ymd(r.end))
-    const n = await postRecurringForMonth(bm.year, bm.month, MONTH_START_DAY, existing)
+    const n = await postRecurringForMonth(bm.year, bm.month, getMonthStartDay(), existing)
     postMsg = n > 0 ? `${n}件を計上しました` : 'すでに計上済みです'
   }
 </script>
 
 <div class="screen">
+  <div class="card">
+    <div class="budget-row">
+      <span class="tx-name">月の開始日</span>
+      <select class="budget-input" value={startDay} onchange={(e) => saveStartDay(+e.currentTarget.value)}>
+        {#each DAYS as d}<option value={d}>{d}日</option>{/each}
+      </select>
+    </div>
+    <p class="hint">予算月の区切り。例：25 なら 25日〜翌24日。変更すると全画面の集計に反映されます。</p>
+    {#if startMsg}<p class="hint">{startMsg}</p>{/if}
+  </div>
+
   <div class="seg seg-wide">
     <button class:active={tab === 'cat'} onclick={() => tab = 'cat'}>カテゴリ</button>
     <button class:active={tab === 'acc'} onclick={() => tab = 'acc'}>口座</button>

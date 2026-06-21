@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { budgetMonthRange, ymd, yen, MONTH_START_DAY } from '../lib/month'
+  import { budgetMonthRange, ymd, yen, getMonthStartDay } from '../lib/month'
   import { listTransactions, listCategories } from '../lib/db'
   import type { Transaction, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -128,6 +128,6 @@
       </table>
     </div>
 
-    <p class="hint">予算月（{MONTH_START_DAY}日始まり）で集計。振替は収支に含めません。横にスクロールできます。</p>
+    <p class="hint">予算月（{getMonthStartDay()}日始まり）で集計。振替は収支に含めません。横にスクロールできます。</p>
   {/if}
 </div>
