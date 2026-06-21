@@ -51,7 +51,7 @@
 │  └─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
 └─ src/
    ├─ main.ts
-   ├─ App.svelte           # タブ構成（6タブ）・認証ゲート・起動時に設定読込→シード→描画
+   ├─ App.svelte           # タブ構成（7タブ）・認証ゲート・起動時に設定読込→シード→描画
    ├─ app.css              # デザイントークン＋全コンポーネントのスタイル
    ├─ vite-env.d.ts
    ├─ lib/
@@ -75,8 +75,9 @@
       ├─ Analysis.svelte
       ├─ YearSummary.svelte     # 年間収支ビュー（会計区分×12ヶ月）。タブ「年間」
       ├─ SpecialExpenses.svelte
+      ├─ FuyouTracker.svelte    # 扶養トラッカー（えみ）。暦年でえみ給料を集計し上限までの残り金額/時間。タブ「扶養」
       ├─ PayslipImport.svelte   # 給与・賞与PDF取込のモーダル（レビュー画面）
-      └─ Settings.svelte        # カテゴリ/口座/予算/定期 + 月の開始日
+      └─ Settings.svelte        # カテゴリ/口座/予算/定期 + 月の開始日 + 扶養トラッカー設定（時給/上限）
 ```
 
 ---
@@ -91,7 +92,7 @@
 - **recurring_rules**（定期）: name, amount, type, category_id, account_id, cycle(monthly/weekly), day_of_month, weekday, start_date, end_date, active, memo
 - **budgets**（予算）: category_id, period_month('YYYY-MM'), amount。`unique(user_id, category_id, period_month)`
 - **special_expenses**（特別費）: name, year, planned_month(1-12), budget_amount, actual_amount(null=予定), is_reserved(積立対象か), transaction_id
-- **settings**（設定・1ユーザー1行）: month_start_day(既定25), currency('JPY')。**アプリで使用中**（§4）。
+- **settings**（設定・1ユーザー1行）: month_start_day(既定25), currency('JPY'), emi_hourly_wage(既定1180), emi_year_cap(既定1030000=扶養トラッカーの年間上限。103万円＝夫の会社の扶養手当の条件)。**アプリで使用中**（§4）。emi_* は後から追加した列（既存DBは `alter table settings add column if not exists ...`。未追加でも既定値で動作）。
 
 ### 会計区分（division）
 `income`（収入）/ `tax`（税金・社保）/ `saving`（貯蓄）/ `fixed`（固定費）/ `variable`（変動費）
@@ -118,14 +119,17 @@
 
 - **認証**（Auth.svelte）: メール＋パスワード。RLSで本人のデータのみ。
 - **初回シード**（seed.ts）: 初サインイン時、カテゴリが空なら口座（現金/銀行/クレカ）と Excel由来のカテゴリ一式（ゆうき給料/えみ給料/ボーナス/各税・保険/各固定費/各変動費 等）を自動投入。
-- **タブナビ**（App.svelte）: ホーム / 取引 / 分析 / **年間** / 特別費 / 設定 の **6タブ**。起動時に設定読込→シード→描画をゲート。
+- **タブナビ**（App.svelte）: ホーム / 取引 / 分析 / **年間** / 特別費 / **扶養** / 設定 の **7タブ**。起動時に設定読込→シード→描画をゲート。
 - **ホーム**（Home.svelte）: 今月（予算月）の収入・支出・収支、予算進捗バー、最近の取引（振替は中立表示）。
 - **取引**（Transactions.svelte）: 予算月切替、絞り込み、日付グループ、行タップ編集、**給与PDF取込ボタン**。振替は「口座A→口座B」表示・日次集計から除外。
 - **入力／編集／削除**（AddTransaction.svelte）: 支出/収入/**振替**。振替は移動元/移動先口座を選択。
 - **分析**（Analysis.svelte）: カテゴリ構成ドーナツ、固定費vs変動費、直近6ヶ月推移、曜日別支出（すべて type='expense' 集計＝振替は自動除外）。
 - **年間収支ビュー**（YearSummary.svelte）: 会計区分×12予算月のマトリクス（Excel収支表の代替）。年間サマリ＋横スクロール表。1クエリで取得、文字列境界比較で月振り分け（TZ非依存）。
 - **特別費**（SpecialExpenses.svelte）: 年切替、年間合計と毎月の積立目安、月別一覧、追加/編集/削除。
-- **設定**（Settings.svelte）: カテゴリ/口座/予算/定期の管理 ＋ **月の開始日**（settings.month_start_day を変更可）。
+- **扶養トラッカー**（FuyouTracker.svelte / タブ「扶養」）: えみが夫の扶養を外れないよう、**暦年(1〜12月)・支給日ベース**で `category='えみ給料'` の収入を集計。上限（**既定103万円**）までの**残り金額・時給換算の残り時間**、進捗バー、月別（社保の月8.8万ライン警告つき）、年間着地見込みを表示。**年末調整還付（category=null）は報酬でないため集計対象外**。時給・年間上限は `settings.emi_hourly_wage/emi_year_cap`（設定タブで変更可、`db.ts` の `getFuyouConfig/saveFuyouConfig`。列未追加でも既定値で動作）。集計は暦年なので**予算月(25日始まり)とは別軸**。
+  - **壁の整理（重要）**: ①**103万円**＝夫の会社の扶養手当（¥1万/月）の条件で最も低い壁→これが既定の管理ライン。②106万円＝社保の賃金要件だが**2026年10月に撤廃**。③123万円＝えみ本人の所得税（2025年改正で103→123万）。④130万円＝社保の被扶養者認定。**103万を守れば②③④も自動でクリア**。
+  - **2026年10月の制度変更**: 社保の賃金要件(月8.8万)が撤廃され、51人以上の勤務先では「**週の所定労働時間20時間以上**」だけで社保加入＝金額では決まらなくなる。えみの勤務先(サーティーンストラット)は200〜400名で常に該当するため、以降は**週20時間未満かどうかが社保扶養の唯一の鍵**。手当(103万)とは別軸なので、上限到達だけでなく週20時間も意識する（UIにも注記済み）。
+- **設定**（Settings.svelte）: カテゴリ/口座/予算/定期の管理 ＋ **月の開始日**（settings.month_start_day を変更可）＋ **扶養トラッカー設定**（えみの時給・年間上限）。
 - **給与・賞与PDF取込**（§6）: えみ=テキストPDF、ゆうき給料・賞与=スキャン+Azure OCR。
 - **PWA**: ホーム画面に追加可（manifest/アイコン/Service Worker）。アプリシェルはオフラインでも起動（データ表示/入力はオンライン必須）。
 

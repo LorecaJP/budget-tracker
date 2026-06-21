@@ -6,7 +6,8 @@
   import {
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
-    listBudgets, setBudget, listTransactions, saveSettings, type Recurring, type Budget,
+    listBudgets, setBudget, listTransactions, saveSettings,
+    getFuyouConfig, saveFuyouConfig, type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -34,8 +35,20 @@
   async function reload() {
     accounts = await listAccounts(true)
     categories = await listCategories(true)
+    const fc = await getFuyouConfig()
+    emiWage = fc.hourly_wage; emiCap = fc.year_cap
   }
   onMount(reload)
+
+  // --- 扶養トラッカー（えみ）設定 ---
+  let emiWage = $state(1180)
+  let emiCap = $state(1060000)
+  let emiMsg = $state('')
+  async function saveEmi() {
+    emiMsg = '保存中…'
+    const { error } = await saveFuyouConfig({ hourly_wage: +emiWage, year_cap: +emiCap }, $session!.user.id)
+    emiMsg = error ? '保存に失敗：' + error.message + '（settings に列追加が必要かもしれません）' : '保存しました'
+  }
 
   // --- カテゴリ ---
   let catEdit = $state<Partial<Category> | null>(null)
@@ -108,6 +121,20 @@
     </div>
     <p class="hint">予算月の区切り。例：25 なら 25日〜翌24日。変更すると全画面の集計に反映されます。</p>
     {#if startMsg}<p class="hint">{startMsg}</p>{/if}
+  </div>
+
+  <div class="card">
+    <div class="card-label">扶養トラッカー（えみ）</div>
+    <div class="budget-row">
+      <span class="tx-name">時給</span>
+      <input class="budget-input" type="number" inputmode="numeric" bind:value={emiWage} />
+    </div>
+    <div class="budget-row">
+      <span class="tx-name">年間上限</span>
+      <input class="budget-input" type="number" inputmode="numeric" bind:value={emiCap} />
+    </div>
+    <button class="add-inline" onclick={saveEmi}>保存</button>
+    <p class="hint">「扶養」タブで使う時給と年間上限（103万＝1030000 / 106万＝1060000 / 130万＝1300000）。{emiMsg}</p>
   </div>
 
   <div class="seg seg-wide">
