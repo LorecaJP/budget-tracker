@@ -46,7 +46,7 @@ button { font-family: inherit; cursor: pointer; }
 .neg { color: var(--neg); }
 .boot, .state { color: var(--muted); text-align: center; padding: 24px 12px; font-size: 14px; }
 .state.err, .msg.error { color: var(--neg); }
-.msg { font-size: 13px; margin: 8px 0 0; }
+.msg { font-size: 13px; margin: 8px 0 0; overflow-wrap: anywhere; }
 .msg.notice { color: var(--muted); }
 
 /* ===== 認証 ===== */
