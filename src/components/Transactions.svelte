@@ -4,6 +4,7 @@
   import { listTransactions, listCategories, listAccounts } from '../lib/db'
   import type { Transaction, Category, Account, TxType } from '../lib/types'
   import AddTransaction from './AddTransaction.svelte'
+  import PayslipImport from './PayslipImport.svelte'
 
   const today = budgetMonthOf(new Date())
   let year = $state(today.year)
@@ -20,6 +21,7 @@
   let fCat = $state('')
   let fPerson = $state('')
   let editing = $state<Transaction | null>(null)
+  let showImport = $state(false)
 
   const grouped = $derived.by(() => {
     const map = new Map<string, Transaction[]>()
@@ -80,6 +82,8 @@
     </select>
   </div>
 
+  <button class="add-inline" onclick={() => showImport = true}>📄 給与PDFを取り込む</button>
+
   {#if loading}
     <p class="state">読み込み中…</p>
   {:else if grouped.length === 0}
@@ -115,4 +119,8 @@
 
 {#if editing}
   <AddTransaction existing={editing} onclose={() => editing = null} onsaved={() => { editing = null; load() }} />
+{/if}
+
+{#if showImport}
+  <PayslipImport onclose={() => showImport = false} onsaved={() => { showImport = false; load() }} />
 {/if}

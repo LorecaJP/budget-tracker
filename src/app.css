@@ -176,6 +176,11 @@ button { font-family: inherit; cursor: pointer; }
 .budget-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 2px; border-bottom: 1px solid var(--border); }
 .budget-input { width: 120px; padding: 8px 10px; text-align: right; font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
 
+/* 給与PDF取込：控除行 */
+.ded-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.ded-label { flex: 1; min-width: 0; padding: 8px 10px; font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
+.ded-cat { font-size: 11px; color: var(--muted); margin: 0 2px 6px; }
+
 /* 年間収支ビュー（区分×12ヶ月マトリクス） */
 .year-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .year-table { border-collapse: collapse; width: 100%; font-size: 12px; white-space: nowrap; }
