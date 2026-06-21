@@ -156,7 +156,7 @@ export async function saveSettings(s: Partial<AppSettings>, userId: string) {
 // 設定は settings テーブルに相乗り（emi_hourly_wage / emi_year_cap）。
 // 列が未追加でも動くよう、取得はエラー時に既定値へフォールバックする。
 export interface FuyouConfig { hourly_wage: number; year_cap: number }
-const FUYOU_DEFAULT: FuyouConfig = { hourly_wage: 1180, year_cap: 1060000 }   // 時給1,180円 / 106万円
+const FUYOU_DEFAULT: FuyouConfig = { hourly_wage: 1180, year_cap: 1030000 }   // 時給1,180円 / 103万円（夫の会社の扶養手当の条件）
 
 export async function getFuyouConfig(): Promise<FuyouConfig> {
   const { data, error } = await supabase.from('settings').select('emi_hourly_wage, emi_year_cap').maybeSingle()

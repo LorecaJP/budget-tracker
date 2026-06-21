@@ -134,7 +134,7 @@
       <input class="budget-input" type="number" inputmode="numeric" bind:value={emiCap} />
     </div>
     <button class="add-inline" onclick={saveEmi}>保存</button>
-    <p class="hint">「扶養」タブで使う時給と年間上限（106万＝1060000 / 130万＝1300000）。{emiMsg}</p>
+    <p class="hint">「扶養」タブで使う時給と年間上限（103万＝1030000 / 106万＝1060000 / 130万＝1300000）。{emiMsg}</p>
   </div>
 
   <div class="seg seg-wide">

@@ -112,13 +112,13 @@ create table settings (
   month_start_day integer not null default 25 check (month_start_day between 1 and 28),  -- 25日始まり
   currency        text not null default 'JPY',
   emi_hourly_wage integer not null default 1180,     -- 扶養トラッカー：えみの時給（円）
-  emi_year_cap    integer not null default 1060000,  -- 扶養トラッカー：年間上限（既定 106万円）
+  emi_year_cap    integer not null default 1030000,  -- 扶養トラッカー：年間上限（既定 103万円＝夫の会社の扶養手当の条件）
   updated_at      timestamptz not null default now()
 );
 -- 既存DB（settings 作成済み）には以下を実行して列を追加する：
 --   alter table settings add column if not exists emi_hourly_wage integer not null default 1180;
---   alter table settings add column if not exists emi_year_cap    integer not null default 1060000;
--- ※未追加でもアプリは既定値（1180 / 1060000）で動作する（getFuyouConfig がフォールバック）。
+--   alter table settings add column if not exists emi_year_cap    integer not null default 1030000;
+-- ※未追加でもアプリは既定値（1180 / 1030000）で動作する（getFuyouConfig がフォールバック）。
 
 -- ============================================================
 -- Row Level Security（本人のデータのみアクセス可）
