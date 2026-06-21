@@ -180,7 +180,8 @@
   3. **`ReadableStream` の async iterator をポリフィル**（Safariは `for await...of ReadableStream` 未対応で、pdf.js の `getTextContent` が落ちる＝"undefined is not a function"）。
 - **Azure F0 は月500ページ無料**。OCRは1取込=1ページ。個人利用なら十分。自動保存せず必ずレビュー（OCRは桁誤読がありうる）。
 - **`.env` はリポジトリに含めない**（.gitignore 済み）。Supabase の URL と publishable key は `src/lib/supabase.ts` にフォールバックでハードコード済み。publishable key は公開前提で、データは RLS で保護。
-- **PWA**: Service Worker は `vite-plugin-pwa`（autoUpdate）が生成。アプリシェルのみ事前キャッシュ（pdf.js等の重いチャンクは除外）。新バージョンは再読み込みで反映。
+- **PWA**: Service Worker は `vite-plugin-pwa`（autoUpdate）が生成。**アプリシェル＋取込チャンク（pdf.js本体 `extract-*.js`・ワーカー含む）をまとめて事前キャッシュ**する（`vite.config.ts` の workbox）。新バージョンは再読み込みで反映。
+- **PWAの落とし穴（実害あり・対処済み）「Importing a module script failed」**: 取込チャンク(`extract-*.js`)を事前キャッシュから外す（旧 `globIgnores: ['**/extract-*.js']`）と、再デプロイでチャンクのハッシュが変わった際に、**古いアプリ殻（SWキャッシュ）が、サーバーから削除済みの旧 `extract-*.js` を動的import しようとして失敗**する（バージョン不整合）。→ **取込チャンクも `globPatterns` で事前キャッシュに含める**ことで、SWのバージョンと常に一致させて防ぐ（`navigateFallbackDenylist: [/\/assets\//]` で資産にindex.htmlを返さないのも併用、`maximumFileSizeToCacheInBytes` をワーカーサイズに合わせて拡大）。古い端末でキャッシュが残ってこのエラーが出る場合は、**プライベートタブで開く / Safari「設定→Safari→詳細→Webサイトデータ」で `github.io` を削除**して更新する。
 - **ビルド時の a11y 警告**（モーダル背景やli等）は出るがビルド成功・動作に影響なし。
 - **定期の重複計上防止はヒューリスティック**（同一カテゴリ・金額・日付・source='recurring'）。厳密にするなら transactions に recurring_rule_id 列を足す（スキーマ変更）。
 - **GitHub Pages の base path** は `/budget-tracker/`（vite.config.ts の `repo`）。リポジトリ名を変えたらここも変更。
