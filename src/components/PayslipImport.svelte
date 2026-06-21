@@ -69,13 +69,6 @@
     return { date: iso, note: null }
   }
 
-  // 診断用：エラーの種類・メッセージ・先頭スタックフレームを表示する
-  function fmtErr(err: unknown): string {
-    const e = err as { name?: string; message?: string; stack?: string }
-    const frames = e?.stack ? String(e.stack).split('\n').slice(0, 4).map(l => l.trim()).filter(Boolean).join(' | ') : ''
-    return `[${e?.name || 'Error'}] ${e?.message || String(err)}${frames ? ' :: ' + frames : ''}`
-  }
-
   function applyParsed(p: ParsedPayslip) {
     parsed = p
     kind = p.kind
@@ -108,7 +101,7 @@
       applyParsed(parsePayslipText(text))
       await checkDuplicate()
     } catch (err) {
-      error = '読み取りに失敗しました：' + fmtErr(err)
+      error = '読み取りに失敗しました：' + (err instanceof Error ? err.message : String(err))
     } finally {
       parsing = false
     }
@@ -124,7 +117,7 @@
       applyParsed(await ocrPayslipImage(image))
       await checkDuplicate()
     } catch (err) {
-      error = fmtErr(err)
+      error = 'OCRに失敗しました：' + (err instanceof Error ? err.message : String(err))
     } finally {
       ocrRunning = false
     }
