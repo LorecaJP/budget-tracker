@@ -1,0 +1,147 @@
+-- ============================================================
+-- 家計簿アプリ データモデル（Supabase / PostgreSQL）
+-- フェーズ1：将来 SwiftData(@Model) にそのまま移せる形で設計
+--
+-- 設計ルール：
+--   - 主キーは uuid（文字列ID）
+--   - 金額は integer（円・正の値。小数誤差を避ける）
+--   - 日付は date / timestamptz
+--   - 種別・区分は text + CHECK 制約（将来 SwiftData の enum に対応）
+--   - リレーションは相手の id 参照（FK）
+--   - 全テーブルに user_id を持たせ、RLS で本人のみアクセス可
+-- ============================================================
+
+-- ---------- 口座 ----------
+create table accounts (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name           text not null,
+  type           text not null check (type in ('cash','bank','credit','emoney')),
+  opening_balance integer not null default 0,   -- 円
+  color          text,
+  sort_order     integer not null default 0,
+  archived       boolean not null default false,
+  created_at     timestamptz not null default now()
+);
+
+-- ---------- カテゴリ ----------
+-- division = 会計区分：収入 / 税金・社保 / 貯蓄 / 固定費 / 変動費
+create table categories (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name        text not null,
+  division    text not null check (division in ('income','tax','saving','fixed','variable')),
+  parent_id   uuid references categories(id) on delete set null,  -- 階層用（任意）
+  color       text,
+  icon        text,
+  sort_order  integer not null default 0,
+  archived    boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
+-- ---------- 取引 ----------
+-- 貯蓄（防衛費・各自貯金・特別費積立）は division='saving' のカテゴリへの取引として記録
+-- 振替は type='transfer'：account_id=移動元、to_account_id=移動先
+create table transactions (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date          date not null,
+  amount        integer not null,               -- 円・正の値
+  type          text not null check (type in ('expense','income','transfer')),
+  category_id   uuid references categories(id) on delete set null,
+  account_id    uuid references accounts(id) on delete set null,
+  to_account_id uuid references accounts(id) on delete set null,  -- 振替先
+  person        text,                            -- 'ゆうき' / 'えみ' / null
+  memo          text not null default '',
+  source        text not null default 'manual' check (source in ('manual','recurring','csv','ocr')),
+  needs_review  boolean not null default false,  -- CSV/OCR取込の未確認フラグ
+  created_at    timestamptz not null default now()
+);
+create index idx_transactions_date on transactions(user_id, date);
+create index idx_transactions_category on transactions(category_id);
+create index idx_transactions_account on transactions(account_id);
+
+-- ---------- 定期ルール（固定費・税金などの自動計上） ----------
+create table recurring_rules (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name         text not null,
+  amount       integer not null,
+  type         text not null check (type in ('expense','income','transfer')),
+  category_id  uuid references categories(id) on delete set null,
+  account_id   uuid references accounts(id) on delete set null,
+  cycle        text not null check (cycle in ('monthly','weekly')),
+  day_of_month integer check (day_of_month between 1 and 31),  -- 毎月の計上日
+  weekday      integer check (weekday between 0 and 6),         -- 毎週の曜日（0=日）
+  start_date   date not null default current_date,
+  end_date     date,
+  active       boolean not null default true,
+  memo         text not null default '',
+  created_at   timestamptz not null default now()
+);
+
+-- ---------- 予算（カテゴリ×月） ----------
+-- period_month は 'YYYY-MM'（予算月の識別。25日始まりの「月」もこの文字列で表す）
+create table budgets (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  category_id  uuid not null references categories(id) on delete cascade,
+  period_month text not null,                    -- 例 '2026-06'
+  amount       integer not null default 0,
+  created_at   timestamptz not null default now(),
+  unique (user_id, category_id, period_month)    -- ※Web側のみ。SwiftData移行時はコードで担保
+);
+
+-- ---------- 特別費（年間の臨時支出・積立対象） ----------
+create table special_expenses (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name           text not null,
+  year           integer not null,
+  planned_month  integer not null check (planned_month between 1 and 12),
+  budget_amount  integer not null default 0,
+  actual_amount  integer,                         -- null = 未消化（予定）
+  is_reserved    boolean not null default true,   -- 積立対象か
+  transaction_id uuid references transactions(id) on delete set null,  -- 支払いの紐付け
+  created_at     timestamptz not null default now()
+);
+
+-- ---------- 設定（ユーザーごと1行） ----------
+create table settings (
+  user_id         uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  month_start_day integer not null default 25 check (month_start_day between 1 and 28),  -- 25日始まり
+  currency        text not null default 'JPY',
+  updated_at      timestamptz not null default now()
+);
+
+-- ============================================================
+-- Row Level Security（本人のデータのみアクセス可）
+-- ============================================================
+alter table accounts          enable row level security;
+alter table categories        enable row level security;
+alter table transactions      enable row level security;
+alter table recurring_rules   enable row level security;
+alter table budgets           enable row level security;
+alter table special_expenses  enable row level security;
+alter table settings          enable row level security;
+
+create policy "own rows" on accounts          for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on categories        for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on transactions      for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on recurring_rules   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on budgets           for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on special_expenses  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own settings" on settings      for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ============================================================
+-- 参考：初期カテゴリ（Excelの設定シートより）
+-- ※ seed はアプリ初回起動時に投入するのが安全（auth.uid() を使うため）。
+--   下記は登録したい項目の一覧メモ。
+--
+-- 収入(income)        : ゆうき給料, ボーナス, えみ給料
+-- 税金・社保(tax)      : 所得税, 住民税, 健康保険, 厚生年金, 雇用保険
+-- 貯蓄(saving)        : 防衛費, 特別費, ゆうき貯金, えみ貯金
+-- 固定費(fixed)       : 家賃+駐車場代, 水道代, 電気代, 浄水器代, Wi-Fi代,
+--                       携帯代, 生命保険, ジム代, 定期代・交通費
+-- 変動費(variable)    : 食費, 日用品代, 交際費, ゆうきおこづかい, えみおこづかい
+-- ============================================================
