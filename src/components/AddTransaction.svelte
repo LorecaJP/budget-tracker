@@ -1,19 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { supabase } from '../lib/supabase'
   import { ymd } from '../lib/month'
-  import type { Account, Category, TxType } from '../lib/types'
+  import { listAccounts, listCategories, insertTransaction, updateTransaction, deleteTransaction } from '../lib/db'
+  import type { Account, Category, TxType, Transaction } from '../lib/types'
 
-  interface Props { onclose: () => void; onadded: () => void }
-  let { onclose, onadded }: Props = $props()
+  interface Props { onclose: () => void; onsaved: () => void; existing?: Transaction | null }
+  let { onclose, onsaved, existing = null }: Props = $props()
 
-  let amount = $state<number | null>(null)
-  let type = $state<TxType>('expense')
-  let categoryId = $state('')
-  let accountId = $state('')
-  let person = $state('')
-  let date = $state(ymd(new Date()))
-  let memo = $state('')
+  let amount = $state<number | null>(existing ? existing.amount : null)
+  let type = $state<TxType>(existing ? existing.type : 'expense')
+  let categoryId = $state(existing?.category_id ?? '')
+  let accountId = $state(existing?.account_id ?? '')
+  let person = $state(existing?.person ?? '')
+  let date = $state(existing ? existing.date : ymd(new Date()))
+  let memo = $state(existing?.memo ?? '')
 
   let accounts = $state<Account[]>([])
   let categories = $state<Category[]>([])
@@ -25,39 +25,42 @@
   )
 
   onMount(async () => {
-    const [aRes, cRes] = await Promise.all([
-      supabase.from('accounts').select('*').eq('archived', false).order('sort_order'),
-      supabase.from('categories').select('*').eq('archived', false).order('sort_order'),
-    ])
-    accounts = (aRes.data ?? []) as Account[]
-    categories = (cRes.data ?? []) as Category[]
-    if (accounts[0]) accountId = accounts[0].id
+    accounts = await listAccounts()
+    categories = await listCategories()
+    if (!accountId && accounts[0]) accountId = accounts[0].id
   })
 
   async function save() {
     error = null
     if (!amount || amount <= 0) { error = '金額を入力してください'; return }
     saving = true
-    const { error: e } = await supabase.from('transactions').insert({
-      date,
-      amount: Math.round(amount),
-      type,
-      category_id: categoryId || null,
-      account_id: accountId || null,
-      person: person || null,
-      memo,
-      source: 'manual',
-    })
+    const payload = {
+      date, amount: Math.round(amount), type,
+      category_id: categoryId || null, account_id: accountId || null,
+      person: person || null, memo,
+    }
+    const { error: e } = existing
+      ? await updateTransaction(existing.id, payload)
+      : await insertTransaction(payload)
     saving = false
     if (e) { error = e.message; return }
-    onadded()
+    onsaved()
+  }
+
+  async function remove() {
+    if (!existing) return
+    saving = true
+    const { error: e } = await deleteTransaction(existing.id)
+    saving = false
+    if (e) { error = e.message; return }
+    onsaved()
   }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose() }} />
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
-  <div class="sheet" role="dialog" aria-modal="true" aria-label="取引を入力">
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="取引">
     <div class="sheet-head">
       <button class="link" onclick={onclose}>キャンセル</button>
       <div class="seg">
@@ -70,42 +73,38 @@
     <div class="amount-display">¥{(amount ?? 0).toLocaleString('ja-JP')}</div>
     <input class="amount-input" type="number" inputmode="numeric" bind:value={amount} placeholder="金額を入力" />
 
-    <label class="field">
-      <span>カテゴリ</span>
+    <label class="field"><span>カテゴリ</span>
       <select bind:value={categoryId}>
         <option value="">未分類</option>
         {#each visibleCats as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
       </select>
     </label>
-
-    <label class="field">
-      <span>口座</span>
+    <label class="field"><span>口座</span>
       <select bind:value={accountId}>
+        <option value="">未指定</option>
         {#each accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
       </select>
     </label>
-
     <div class="row2">
-      <label class="field">
-        <span>人</span>
+      <label class="field"><span>人</span>
         <select bind:value={person}>
           <option value="">指定なし</option>
           <option value="ゆうき">ゆうき</option>
           <option value="えみ">えみ</option>
         </select>
       </label>
-      <label class="field">
-        <span>日付</span>
+      <label class="field"><span>日付</span>
         <input type="date" bind:value={date} />
       </label>
     </div>
-
-    <label class="field">
-      <span>メモ</span>
+    <label class="field"><span>メモ</span>
       <input type="text" bind:value={memo} placeholder="任意" />
     </label>
 
     {#if error}<p class="msg error">{error}</p>{/if}
-    <button class="primary" onclick={save} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
+    <button class="primary" onclick={save} disabled={saving}>{saving ? '保存中…' : existing ? '更新' : '保存'}</button>
+    {#if existing}
+      <button class="danger" onclick={remove} disabled={saving}>削除</button>
+    {/if}
   </div>
 </div>
