@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen } from '../lib/month'
-  import { listTransactions, listCategories, listBudgets } from '../lib/db'
-  import type { Transaction, Category } from '../lib/types'
+  import { listTransactions, listCategories, listBudgets, listAccounts } from '../lib/db'
+  import type { Transaction, Category, Account } from '../lib/types'
 
   let loading = $state(true)
   let error = $state<string | null>(null)
   let txs = $state<Transaction[]>([])
   let cats = $state<Record<string, Category>>({})
+  let accs = $state<Record<string, Account>>({})
   let budgets = $state<{ category_id: string; amount: number }[]>([])
 
   const bm = budgetMonthOf(new Date())
@@ -36,6 +37,8 @@
     loading = true; error = null
     const cl = await listCategories()
     cats = Object.fromEntries(cl.map(c => [c.id, c]))
+    const al = await listAccounts()
+    accs = Object.fromEntries(al.map(a => [a.id, a]))
     txs = await listTransactions(ymd(range.start), ymd(range.end))
     budgets = await listBudgets(periodKey(bm.year, bm.month))
     loading = false
@@ -43,6 +46,7 @@
   onMount(load)
 
   function catName(id: string | null) { return id && cats[id] ? cats[id].name : '未分類' }
+  function accName(id: string | null) { return id && accs[id] ? accs[id].name : '—' }
 </script>
 
 <div class="screen">
@@ -81,11 +85,19 @@
       <ul class="tx-list">
         {#each recent as t (t.id)}
           <li class="tx-row">
-            <div class="tx-main">
-              <span class="tx-name">{t.memo || catName(t.category_id)}</span>
-              <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''} · {t.date.slice(5)}</span>
-            </div>
-            <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
+            {#if t.type === 'transfer'}
+              <div class="tx-main">
+                <span class="tx-name">{t.memo || '振替'}</span>
+                <span class="tx-sub">{accName(t.account_id)} → {accName(t.to_account_id)} · {t.date.slice(5)}</span>
+              </div>
+              <span class="tx-amt muted">{yen(t.amount)}</span>
+            {:else}
+              <div class="tx-main">
+                <span class="tx-name">{t.memo || catName(t.category_id)}</span>
+                <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''} · {t.date.slice(5)}</span>
+              </div>
+              <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
+            {/if}
           </li>
         {/each}
       </ul>

@@ -12,6 +12,7 @@
   let txs = $state<Transaction[]>([])
   let cats = $state<Record<string, Category>>({})
   let accounts = $state<Account[]>([])
+  let accMap = $state<Record<string, Account>>({})
   let catList = $state<Category[]>([])
   let loading = $state(true)
 
@@ -36,6 +37,7 @@
       catList = await listCategories()
       accounts = await listAccounts()
       cats = Object.fromEntries(catList.map(c => [c.id, c]))
+      accMap = Object.fromEntries(accounts.map(a => [a.id, a]))
     }
     txs = await listTransactions(ymd(r.start), ymd(r.end), {
       type: fType, categoryId: fCat, person: fPerson,
@@ -49,9 +51,13 @@
     year = m.year; month = m.month; load()
   }
   function dayTotal(list: Transaction[]) {
-    return list.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0)
+    return list.reduce((s, t) => {
+      if (t.type === 'transfer') return s   // 振替は収支に含めない
+      return s + (t.type === 'income' ? t.amount : -t.amount)
+    }, 0)
   }
   function catName(id: string | null) { return id && cats[id] ? cats[id].name : '未分類' }
+  function accName(id: string | null) { return id && accMap[id] ? accMap[id].name : '—' }
 </script>
 
 <div class="screen">
@@ -63,7 +69,7 @@
 
   <div class="filters">
     <select bind:value={fType} onchange={load}>
-      <option value="">すべて</option><option value="expense">支出</option><option value="income">収入</option>
+      <option value="">すべて</option><option value="expense">支出</option><option value="income">収入</option><option value="transfer">振替</option>
     </select>
     <select bind:value={fCat} onchange={load}>
       <option value="">全カテゴリ</option>
@@ -87,11 +93,19 @@
       <ul class="tx-list">
         {#each list as t (t.id)}
           <li class="tx-row tappable" onclick={() => editing = t}>
-            <div class="tx-main">
-              <span class="tx-name">{t.memo || catName(t.category_id)}</span>
-              <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''}</span>
-            </div>
-            <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
+            {#if t.type === 'transfer'}
+              <div class="tx-main">
+                <span class="tx-name">{t.memo || '振替'}</span>
+                <span class="tx-sub">{accName(t.account_id)} → {accName(t.to_account_id)}</span>
+              </div>
+              <span class="tx-amt muted">{yen(t.amount)}</span>
+            {:else}
+              <div class="tx-main">
+                <span class="tx-name">{t.memo || catName(t.category_id)}</span>
+                <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''}</span>
+              </div>
+              <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
+            {/if}
           </li>
         {/each}
       </ul>
