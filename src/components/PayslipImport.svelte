@@ -219,7 +219,6 @@
 
       {#if error}<p class="msg error">{error}</p>{/if}
       <button class="primary" onclick={save} disabled={saving}>{saving ? '登録中…' : '確定して登録'}</button>
-      <p class="hint">総支給を収入1件、各控除を支出として登録します（取込元: source=ocr）。</p>
     {/if}
   </div>
 </div>

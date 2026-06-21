@@ -61,6 +61,8 @@ button { font-family: inherit; cursor: pointer; }
   width: 100%; padding: 11px 12px; font-size: 15px; color: var(--text);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
+/* iOS の日付入力は width:100% を無視して枠がはみ出すため、appearance を外して抑える */
+.field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* ===== アプリ枠 ===== */
@@ -97,7 +99,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 15px; font-size: 15px; font-weight: 600;
 }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; justify-content: center; z-index: 10; }
-.sheet { width: 100%; max-width: var(--maxw); background: var(--surface); border-radius: 18px 18px 0 0; padding: 14px 16px 24px; max-height: 92vh; overflow-y: auto; }
+.sheet { width: 100%; max-width: var(--maxw); background: var(--surface); border-radius: 18px 18px 0 0; padding: 14px 16px 24px; max-height: 92vh; overflow-y: auto; overflow-x: hidden; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .seg { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; }
 .seg button { border: none; background: none; color: var(--muted); font-size: 14px; padding: 6px 16px; border-radius: 7px; white-space: nowrap; }
