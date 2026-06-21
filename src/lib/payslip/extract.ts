@@ -23,3 +23,24 @@ export async function extractPdfText(file: File): Promise<ExtractResult> {
     task.destroy()
   }
 }
+
+// スキャンPDFの1ページ目を PNG 画像（Blob）に変換する（クラウドOCRへ送る用）。
+export async function renderPdfFirstPage(file: File, targetWidth = 2200): Promise<Blob> {
+  const data = new Uint8Array(await file.arrayBuffer())
+  const task = pdfjs.getDocument({ data })
+  try {
+    const doc = await task.promise
+    const page = await doc.getPage(1)
+    const base = page.getViewport({ scale: 1 })
+    const scale = Math.min(3, Math.max(1, targetWidth / base.width))
+    const viewport = page.getViewport({ scale })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(viewport.width)
+    canvas.height = Math.ceil(viewport.height)
+    await page.render({ canvas, viewport }).promise
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('画像化に失敗しました'))), 'image/png'))
+  } finally {
+    task.destroy()
+  }
+}

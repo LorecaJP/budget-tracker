@@ -17,6 +17,9 @@
   let dupWarning = $state<string | null>(null)
   let fileName = $state('')
   let parsed = $state<ParsedPayslip | null>(null)
+  let selectedFile = $state<File | null>(null)
+  let needsOcr = $state(false)   // テキスト層なし＝スキャン → クラウドOCRが必要
+  let ocrRunning = $state(false)
 
   // 編集用フィールド
   let payDate = $state('')
@@ -25,6 +28,7 @@
   let accountId = $state('')
   let deductions = $state<PayslipDeduction[]>([])
   let memo = $state('')
+  let statedNet = $state<number | null>(null)   // 明細記載の差引支給額（計算値との照合用）
 
   const totalDeduction = $derived(deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0))
   const net = $derived((Number(gross) || 0) - totalDeduction)
@@ -36,34 +40,54 @@
     catByName = Object.fromEntries(cats.map(c => [c.name, c]))
   })
 
+  function applyParsed(p: ParsedPayslip) {
+    parsed = p
+    payDate = p.payDate ?? ''
+    person = p.person ?? ''
+    gross = p.gross
+    statedNet = p.net
+    deductions = p.deductions.map(d => ({ ...d }))
+    memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '']
+      .filter(Boolean).join(' / ')
+    const bank = accounts.find(a => a.type === 'bank') ?? accounts[0]
+    if (bank) accountId = bank.id
+  }
+
   async function onFile(e: Event) {
     const input = e.currentTarget as HTMLInputElement
     const file = input.files?.[0]
     if (!file) return
-    error = null; dupWarning = null; parsing = true; fileName = file.name
+    error = null; dupWarning = null; needsOcr = false; parsing = true; fileName = file.name; selectedFile = file
     try {
       const { extractPdfText } = await import('../lib/payslip/extract')
       const { parsePayslipText } = await import('../lib/payslip/parse')
       const { text, hasTextLayer } = await extractPdfText(file)
       if (!hasTextLayer) {
-        error = 'このPDFにはテキストがありません（スキャン画像）。スキャン明細のOCR対応は別途実装予定です。'
+        needsOcr = true   // スキャン → OCRボタンを出す（エラーにしない）
         return
       }
-      const p = parsePayslipText(text)
-      parsed = p
-      payDate = p.payDate ?? ''
-      person = p.person ?? ''
-      gross = p.gross
-      deductions = p.deductions.map(d => ({ ...d }))
-      memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '']
-        .filter(Boolean).join(' / ')
-      const bank = accounts.find(a => a.type === 'bank') ?? accounts[0]
-      if (bank) accountId = bank.id
+      applyParsed(parsePayslipText(text))
       await checkDuplicate()
     } catch (err) {
       error = '読み取りに失敗しました：' + (err instanceof Error ? err.message : String(err))
     } finally {
       parsing = false
+    }
+  }
+
+  async function runOcr() {
+    if (!selectedFile) return
+    error = null; ocrRunning = true
+    try {
+      const { renderPdfFirstPage } = await import('../lib/payslip/extract')
+      const { ocrPayslipImage } = await import('../lib/payslip/ocr')
+      const image = await renderPdfFirstPage(selectedFile)
+      applyParsed(await ocrPayslipImage(image))
+      await checkDuplicate()
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err)
+    } finally {
+      ocrRunning = false
     }
   }
 
@@ -116,13 +140,20 @@
     </div>
 
     {#if !parsed}
-      <p class="hint">給与明細のPDFを選ぶと、項目を自動で読み取ります（テキストPDFのみ。スキャンは後日OCR対応）。</p>
-      <label class="add-inline" style="display:block; text-align:center; cursor:pointer">
-        📄 PDFを選択
-        <input type="file" accept="application/pdf,.pdf" onchange={onFile} style="display:none" />
-      </label>
-      {#if parsing}<p class="state">読み取り中…</p>{/if}
-      {#if error}<p class="msg error">{error}</p>{/if}
+      {#if needsOcr}
+        <p class="hint">スキャンPDF（テキストなし）です。クラウドOCR（Azure）で読み取ります。<br />{fileName}</p>
+        <button class="add-inline" onclick={runOcr} disabled={ocrRunning}>{ocrRunning ? 'OCR実行中…（数秒かかります）' : '☁️ クラウドOCRで読み取る'}</button>
+        <p class="hint">※ Azure の設定と Edge Function（payslip-ocr）のデプロイが必要です。未設定だとエラーになります。</p>
+        {#if error}<p class="msg error">{error}</p>{/if}
+      {:else}
+        <p class="hint">給与明細のPDFを選ぶと、項目を自動で読み取ります（テキストPDFは即時、スキャンはクラウドOCR）。</p>
+        <label class="add-inline" style="display:block; text-align:center; cursor:pointer">
+          📄 PDFを選択
+          <input type="file" accept="application/pdf,.pdf" onchange={onFile} style="display:none" />
+        </label>
+        {#if parsing}<p class="state">読み取り中…</p>{/if}
+        {#if error}<p class="msg error">{error}</p>{/if}
+      {/if}
     {:else}
       {#if dupWarning}<p class="msg notice">⚠️ {dupWarning}</p>{/if}
       <p class="hint">{fileName}{parsed.periodLabel ? ' · ' + parsed.periodLabel : ''} · 様式 {parsed.format}</p>
@@ -159,7 +190,10 @@
       {/each}
       <button class="add-inline" onclick={addDeduction}>＋ 控除を追加</button>
 
-      <div class="reserve"><span>差引支給額（手取り）</span><span class="num">{yen(net)}</span></div>
+      <div class="reserve"><span>差引支給額（総支給−控除）</span><span class="num">{yen(net)}</span></div>
+      {#if statedNet != null && statedNet !== net}
+        <p class="msg notice">⚠️ 明細記載の差引支給額（{yen(statedNet)}）と計算値（{yen(net)}）が一致しません。金額を確認してください。</p>
+      {/if}
 
       {#if error}<p class="msg error">{error}</p>{/if}
       <button class="primary" onclick={save} disabled={saving}>{saving ? '登録中…' : '確定して登録'}</button>
