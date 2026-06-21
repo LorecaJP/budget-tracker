@@ -7,6 +7,22 @@ import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker'
 
 pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker()
 
+// Safari は ReadableStream の async iterator（for await...of）を未実装。
+// pdf.js の getTextContent がこれを使うため、無ければ reader API で補完する。
+if (typeof ReadableStream !== 'undefined') {
+  const proto = ReadableStream.prototype as unknown as Record<symbol, unknown>
+  if (typeof proto[Symbol.asyncIterator] !== 'function') {
+    proto[Symbol.asyncIterator] = function (this: ReadableStream) {
+      const reader = this.getReader()
+      return {
+        next: () => reader.read(),
+        return(value: unknown) { reader.releaseLock(); return Promise.resolve({ value, done: true }) },
+        [Symbol.asyncIterator]() { return this },
+      }
+    }
+  }
+}
+
 export interface ExtractResult {
   text: string
   hasTextLayer: boolean   // テキスト層があるか（false ならスキャン画像＝OCRが必要）
