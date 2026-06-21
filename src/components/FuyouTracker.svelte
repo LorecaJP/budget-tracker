@@ -58,17 +58,19 @@
   {:else}
     <section class="card">
       <div class="card-label">えみ 扶養トラッカー（上限 {yen(cap)}）</div>
-      {#if over}
-        <div class="net neg">−{yen(overage)}</div>
-        <p class="hint" style="margin:-8px 0 12px">上限を {yen(overage)} 超過しています</p>
-      {:else}
-        <div class="net pos">{yen(remaining)}</div>
-        <p class="hint" style="margin:-8px 0 12px">上限まであと {yen(remaining)}（時給{yen(wage)}換算で約 {remainHours.toLocaleString('ja-JP')} 時間）働けます</p>
-      {/if}
+      <div class="fuyou-stats">
+        <div class="fuyou-stat">
+          <div class="fuyou-big {over ? 'neg' : 'pos'}">{over ? '−' + yen(overage) : yen(remaining)}</div>
+          <div class="fuyou-cap">{over ? '超過した金額' : 'あと稼げる金額'}</div>
+        </div>
+        <div class="fuyou-stat">
+          <div class="fuyou-big {over ? 'neg' : 'pos'}">約{remainHours.toLocaleString('ja-JP')}<span class="fuyou-unit">時間</span></div>
+          <div class="fuyou-cap">あと働ける時間（時給{yen(wage)}）</div>
+        </div>
+      </div>
 
       <div class="bp-track"><div class="bp-fill {over ? 'over' : ''}" style="width:{pct}%"></div></div>
       <div class="kv" style="margin-top:8px"><span>今年のえみ給料</span><span class="num">{yen(ytd)} / {yen(cap)}（{pct}%）</span></div>
-      <div class="reserve"><span>残り働ける時間（÷ 時給{yen(wage)}）</span><span class="num">{over ? '0' : '約' + remainHours.toLocaleString('ja-JP')} 時間</span></div>
       {#if isThisYear && projected > 0}
         <div class="kv" style="margin-top:8px"><span>このペースの年間着地見込み</span><span class="num {projected > cap ? 'neg' : ''}">{yen(projected)}</span></div>
       {/if}
