@@ -1,64 +1,73 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { supabase } from '../lib/supabase'
-  import { budgetMonthOf, budgetMonthRange, ymd, yen } from '../lib/month'
+  import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen } from '../lib/month'
+  import { listTransactions, listCategories, listBudgets } from '../lib/db'
   import type { Transaction, Category } from '../lib/types'
 
   let loading = $state(true)
   let error = $state<string | null>(null)
   let txs = $state<Transaction[]>([])
   let cats = $state<Record<string, Category>>({})
+  let budgets = $state<{ category_id: string; amount: number }[]>([])
 
-  const now = new Date()
-  const bm = budgetMonthOf(now)
+  const bm = budgetMonthOf(new Date())
   const range = budgetMonthRange(bm.year, bm.month)
 
   const income = $derived(txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0))
   const expense = $derived(txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0))
   const net = $derived(income - expense)
-  const recent = $derived(txs.slice(0, 8))
+  const recent = $derived(txs.slice(0, 6))
+
+  // カテゴリ別の支出
+  const spentByCat = $derived.by(() => {
+    const m = new Map<string, number>()
+    for (const t of txs) if (t.type === 'expense' && t.category_id) m.set(t.category_id, (m.get(t.category_id) ?? 0) + t.amount)
+    return m
+  })
+  const budgetProgress = $derived(
+    budgets.filter(b => b.amount > 0).map(b => ({
+      name: cats[b.category_id]?.name ?? '—',
+      budget: b.amount,
+      spent: spentByCat.get(b.category_id) ?? 0,
+    })).sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget)).slice(0, 4)
+  )
 
   async function load() {
     loading = true; error = null
-    const [cRes, tRes] = await Promise.all([
-      supabase.from('categories').select('*'),
-      supabase.from('transactions').select('*')
-        .gte('date', ymd(range.start)).lt('date', ymd(range.end))
-        .order('date', { ascending: false }).order('created_at', { ascending: false }),
-    ])
-    if (cRes.error || tRes.error) {
-      error = (cRes.error ?? tRes.error)!.message
-      loading = false
-      return
-    }
-    cats = Object.fromEntries(((cRes.data ?? []) as Category[]).map(c => [c.id, c]))
-    txs = (tRes.data ?? []) as Transaction[]
+    const cl = await listCategories()
+    cats = Object.fromEntries(cl.map(c => [c.id, c]))
+    txs = await listTransactions(ymd(range.start), ymd(range.end))
+    budgets = await listBudgets(periodKey(bm.year, bm.month))
     loading = false
   }
   onMount(load)
 
-  function catName(id: string | null) {
-    return id && cats[id] ? cats[id].name : '未分類'
-  }
+  function catName(id: string | null) { return id && cats[id] ? cats[id].name : '未分類' }
 </script>
 
-<div class="home">
+<div class="screen">
   <div class="month-head">{bm.year}年{bm.month}月</div>
 
   <section class="summary">
     <div class="net-label">今月の収支</div>
     <div class="net {net >= 0 ? 'pos' : 'neg'}">{net >= 0 ? '+' : '−'}{yen(Math.abs(net))}</div>
     <div class="io">
-      <div class="io-cell">
-        <span class="io-label">収入</span>
-        <span class="io-val pos">{yen(income)}</span>
-      </div>
-      <div class="io-cell">
-        <span class="io-label">支出</span>
-        <span class="io-val neg">{yen(expense)}</span>
-      </div>
+      <div class="io-cell"><span class="io-label">収入</span><span class="io-val pos">{yen(income)}</span></div>
+      <div class="io-cell"><span class="io-label">支出</span><span class="io-val neg">{yen(expense)}</span></div>
     </div>
   </section>
+
+  {#if budgetProgress.length}
+    <section class="card">
+      <div class="card-label">予算の進捗</div>
+      {#each budgetProgress as b}
+        <div class="bp">
+          <div class="bp-head"><span>{b.name}</span><span class="num">{yen(b.spent)} / {yen(b.budget)}</span></div>
+          <div class="bp-track"><div class="bp-fill {b.spent > b.budget ? 'over' : ''}" style="width:{Math.min(100, (b.spent / b.budget) * 100)}%"></div></div>
+        </div>
+      {/each}
+    </section>
+  {/if}
 
   <section class="recent">
     <h2 class="recent-title">最近の取引</h2>
@@ -76,9 +85,7 @@
               <span class="tx-name">{t.memo || catName(t.category_id)}</span>
               <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''} · {t.date.slice(5)}</span>
             </div>
-            <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">
-              {t.type === 'income' ? '+' : '−'}{yen(t.amount)}
-            </span>
+            <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
           </li>
         {/each}
       </ul>

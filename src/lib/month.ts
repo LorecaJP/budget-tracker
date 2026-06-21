@@ -34,3 +34,16 @@ export function ymd(d: Date): string {
 export function yen(n: number): string {
   return '¥' + Math.round(n).toLocaleString('ja-JP')
 }
+
+// 予算月を delta ヶ月ずらす
+export function shiftBudgetMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const idx = (year * 12 + (month - 1)) + delta
+  return { year: Math.floor(idx / 12), month: (idx % 12) + 1 }
+}
+
+// 直近 n 個の予算月（古い順）
+export function lastNBudgetMonths(year: number, month: number, n: number): { year: number; month: number }[] {
+  const out: { year: number; month: number }[] = []
+  for (let i = n - 1; i >= 0; i--) out.push(shiftBudgetMonth(year, month, -i))
+  return out
+}
