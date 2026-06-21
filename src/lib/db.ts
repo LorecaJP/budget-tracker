@@ -52,7 +52,7 @@ export async function deleteTransaction(id: string) {
 }
 
 // ---------- 口座 CRUD ----------
-export async function upsertAccount(a: Partial<Account> & { id?: string }) {
+export async function upsertAccount(a: Partial<Account> & { id?: string; user_id?: string }) {
   if (a.id) return supabase.from('accounts').update(a).eq('id', a.id)
   return supabase.from('accounts').insert(a)
 }
@@ -61,7 +61,7 @@ export async function archiveAccount(id: string, archived: boolean) {
 }
 
 // ---------- カテゴリ CRUD ----------
-export async function upsertCategory(c: Partial<Category> & { id?: string }) {
+export async function upsertCategory(c: Partial<Category> & { id?: string; user_id?: string }) {
   if (c.id) return supabase.from('categories').update(c).eq('id', c.id)
   return supabase.from('categories').insert(c)
 }
