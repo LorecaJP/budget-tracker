@@ -6,6 +6,7 @@ export interface PayslipDeduction {
 
 export interface ParsedPayslip {
   format: string                   // 'thirteenstrut' / 'generic' など
+  kind: 'salary' | 'bonus'         // 給料 / 賞与（計上月の補正やカテゴリ分けに使う）
   person: string | null            // 'えみ' / 'ゆうき' / null
   incomeCategory: string | null    // 総支給を割り当てるカテゴリ名
   payDate: string | null           // 'YYYY-MM-DD'（支給日）

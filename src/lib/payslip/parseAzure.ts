@@ -61,12 +61,14 @@ function findInMap(map: Map<string, number>, keyword: string): number | null {
   return null
 }
 
-// 和暦（令和）→ 西暦。令和N年 = 2018 + N。
-function wareki(text: string): string | null {
-  const m = text.match(/支給日[^\n]*?令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
-    ?? text.match(/令和\s*(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/)
+// 和暦の支給日 → 西暦 'YYYY-MM-DD'。令和は省略されることがある（賞与明細）ので
+// 1〜2桁の年は令和（2018+N）とみなす。支給日付近を優先し、改行をまたぐ並びにも対応。
+function eraDate(text: string): string | null {
+  const m = text.match(/支給日[\s\S]{0,12}?(?:令和\s*)?(\d{1,2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/)
+    ?? text.match(/(?:令和\s*)?(\d{1,2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/)
   if (!m) return null
-  const y = 2018 + Number(m[1])
+  let y = Number(m[1])
+  if (y < 100) y = 2018 + y
   return `${y}-${String(Number(m[2])).padStart(2, '0')}-${String(Number(m[3])).padStart(2, '0')}`
 }
 
@@ -75,11 +77,14 @@ export function parseAzureLayout(ar: any): ParsedPayslip {
   const lines = content.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean)
   const tmap = tableValueMap(ar)
 
+  const isBonus = /賞与/.test(content)
   const person = /優樹/.test(content) ? 'ゆうき' : /絵巳/.test(content) ? 'えみ' : null
 
-  // 合計系は本文から
-  const gross = contentNumber(lines, '総支給額') ?? contentNumber(lines, '支給合計') ?? findInMap(tmap, '総支給')
-  const net = contentNumber(lines, '差引支給額') ?? contentNumber(lines, '振込支給額')
+  // 総支給（給料）/ 賞与支給総額（賞与）。本文優先、無ければ表から。
+  const gross = contentNumber(lines, '総支給額') ?? contentNumber(lines, '賞与支給総額')
+    ?? contentNumber(lines, '支給合計') ?? findInMap(tmap, '総支給') ?? findInMap(tmap, '賞与')
+  // 差引支給額は本文で値が隣接しないことがある（賞与）ので表からも拾う
+  const net = contentNumber(lines, '差引支給額') ?? contentNumber(lines, '振込支給額') ?? findInMap(tmap, '差引支給額')
 
   // 内訳は表セルから（小計の 社会保険料計・課税対象額・控除合計 は拾わない）
   const dedDefs: { label: string; keys: string[] }[] = [
@@ -96,12 +101,16 @@ export function parseAzureLayout(ar: any): ParsedPayslip {
     if (amt && amt > 0) deductions.push({ label: d.label, amount: amt })
   }
 
+  const incomeCategory = isBonus ? 'ボーナス'
+    : person === 'ゆうき' ? 'ゆうき給料' : person === 'えみ' ? 'えみ給料' : null
+
   return {
     format: 'azure-layout',
+    kind: isBonus ? 'bonus' : 'salary',
     person,
-    incomeCategory: person === 'ゆうき' ? 'ゆうき給料' : person === 'えみ' ? 'えみ給料' : null,
-    payDate: wareki(content),
-    periodLabel: (content.match(/令和\s*\d+\s*年\s*\d+\s*月度/) ?? [])[0]?.replace(/\s/g, '') ?? null,
+    incomeCategory,
+    payDate: eraDate(content),
+    periodLabel: isBonus ? '賞与' : ((content.match(/令和\s*\d+\s*年\s*\d+\s*月度/) ?? [])[0]?.replace(/\s/g, '') ?? null),
     gross,
     net,
     deductions,
