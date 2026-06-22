@@ -103,7 +103,7 @@
       <ul class="tx-list">
         {#each list as t (t.id)}
           <li class="tx-row tappable" onclick={() => editing = t}>
-            <TxIcon type={t.type} division={catDiv(t.category_id)} />
+            <TxIcon type={t.type} division={catDiv(t.category_id)} name={catName(t.category_id)} />
             {#if t.type === 'transfer'}
               <div class="tx-main">
                 <span class="tx-name">{t.memo || '振替'}</span>

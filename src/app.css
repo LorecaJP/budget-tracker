@@ -9,7 +9,7 @@
   --pos: #1F6F58;   /* 収入・プラス */
   --neg: #B4452E;   /* 支出・マイナス */
   --accent: #1F6F58;
-  --glass-bg: rgba(255,255,255,.6); --glass-edge: rgba(255,255,255,.6); --glass-hi: rgba(255,255,255,.78); --glass-cap: rgba(255,255,255,.7);
+  --glass-bg: rgba(255,255,255,.6); --glass-edge: rgba(255,255,255,.6); --glass-hi: rgba(255,255,255,.78); --glass-cap: rgba(255,255,255,.7); --sheet-bg: rgba(248,248,250,.86);
   /* 扶養トラッカーのタイル/信号 */
   --fy-blue: #2A577E; --fy-blue-bg: #EAF0F6;
   --fy-amber: #B5821A; --fy-amber-bg: #F7EBD3;
@@ -32,11 +32,13 @@
     --pos: #4FB79A;
     --neg: #E0795C;
     --accent: #4FB79A;
-    --glass-bg: rgba(44,44,48,.55); --glass-edge: rgba(255,255,255,.16); --glass-hi: rgba(255,255,255,.1); --glass-cap: rgba(255,255,255,.16);
+    --glass-bg: rgba(44,44,48,.55); --glass-edge: rgba(255,255,255,.16); --glass-hi: rgba(255,255,255,.1); --glass-cap: rgba(255,255,255,.16); --sheet-bg: rgba(30,30,33,.86);
     --fy-blue: #7FB2DE; --fy-blue-bg: #1E2730;
     --fy-amber: #D2A44E; --fy-amber-bg: #2C2820;
     --fy-green-bg: #1E2A28; --fy-red-bg: #2E2320; --fy-off-bg: #23262D;
   }
+  /* ダーク：カードは影が見えないので細いボーダーで輪郭を出す */
+  .card, .summary, .tx-list { box-shadow: none; border: 1px solid var(--border); }
 }
 
 * { box-sizing: border-box; }
@@ -130,13 +132,17 @@ button { font-family: inherit; cursor: pointer; }
   padding: 13px 20px; font-size: 15px; font-weight: 700; z-index: 7;
 }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; justify-content: center; z-index: 10; }
-.sheet { width: 100%; max-width: var(--maxw); background: var(--surface); border-radius: 18px 18px 0 0; padding: 14px 16px 24px; max-height: 92vh; overflow-y: auto; overflow-x: hidden; }
+.sheet { width: 100%; max-width: var(--maxw); background: var(--sheet-bg);
+  -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  border-top: 1px solid var(--glass-edge); border-radius: 22px 22px 0 0; padding: 8px 16px 24px;
+  max-height: 92vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
+.sheet-grab { width: 38px; height: 5px; border-radius: 3px; background: var(--border); margin: 4px auto 8px; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .seg { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; }
 .seg button { border: none; background: none; color: var(--muted); font-size: 14px; padding: 6px 16px; border-radius: 7px; white-space: nowrap; }
 .seg button.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.14); }
-.amount-display { text-align: right; font-size: 30px; font-weight: 600; padding: 10px 4px 0; }
-.amount-input { width: 100%; padding: 10px 12px; font-size: 16px; text-align: right; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 6px 0 14px; color: var(--text); }
+.amount-display { text-align: center; font-size: 44px; font-weight: 800; letter-spacing: -.02em; padding: 8px 4px 2px; }
+.amount-input { width: 100%; padding: 11px 12px; font-size: 17px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 6px 0 14px; color: var(--text); }
 
 /* ===== タブバー & 画面 ===== */
 .app { padding-bottom: 120px; }
