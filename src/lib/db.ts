@@ -59,6 +59,10 @@ export async function upsertAccount(a: Partial<Account> & { id?: string; user_id
 export async function archiveAccount(id: string, archived: boolean) {
   return supabase.from('accounts').update({ archived }).eq('id', id)
 }
+// 毎月この口座へ振り分ける計画額を設定（accounts.monthly_alloc。列未追加だとエラーを返す）
+export async function setAccountAlloc(id: string, amount: number | null) {
+  return supabase.from('accounts').update({ monthly_alloc: amount }).eq('id', id)
+}
 
 // ---------- カテゴリ CRUD ----------
 export async function upsertCategory(c: Partial<Category> & { id?: string; user_id?: string }) {
