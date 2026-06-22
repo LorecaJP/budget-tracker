@@ -7,7 +7,7 @@
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
     listBudgets, setBudget, listTransactions, saveSettings,
-    getFuyouConfig, saveFuyouConfig, setCategoryGoal, type Recurring, type Budget,
+    getFuyouConfig, saveFuyouConfig, setCategoryGoal, setAccountAlloc, type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -55,6 +55,15 @@
   async function saveGoal(id: string, val: number) {
     const { error } = await setCategoryGoal(id, Math.round(val) || null)
     goalMsg = error ? '保存に失敗（categories に goal_amount 列が必要）：' + error.message + ' / ' : '保存しました / '
+    reload()
+  }
+
+  // --- 口座への配分（配分プラン：毎月どの口座へいくら振り分けるか） ---
+  let allocMsg = $state('')
+  const allocTotal = $derived(accounts.filter(a => !a.archived).reduce((s, a) => s + (a.monthly_alloc ?? 0), 0))
+  async function saveAlloc(id: string, val: number) {
+    const { error } = await setAccountAlloc(id, Math.round(val) || null)
+    allocMsg = error ? '保存に失敗（accounts に monthly_alloc 列が必要）：' + error.message + ' / ' : '保存しました / '
     reload()
   }
 
@@ -156,6 +165,22 @@
       </div>
     {/each}
     <p class="hint">{goalMsg}各貯蓄カテゴリの目標額。ホームの「貯金の目標」に達成率が出ます。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label">口座への配分（毎月）</div>
+    {#each accounts.filter(a => !a.archived) as a (a.id)}
+      <div class="budget-row">
+        <span class="tx-name">{a.name}</span>
+        <input class="budget-input" type="number" inputmode="numeric" value={a.monthly_alloc ?? ''} placeholder="0"
+          onchange={(e) => saveAlloc(a.id, +(e.currentTarget as HTMLInputElement).value)} />
+      </div>
+    {/each}
+    <div class="budget-row alloc-total">
+      <span class="tx-name">合計</span>
+      <span class="tx-amt">{yen(allocTotal)}</span>
+    </div>
+    <p class="hint">{allocMsg}給料日に各口座へ振り分ける計画額（ゆうちょ／SBI／楽天など）。合計を手取りに合わせると配分の目安になります。</p>
   </div>
 
   <div class="seg seg-wide">

@@ -12,6 +12,7 @@ export interface Account {
   color: string | null
   sort_order: number
   archived: boolean
+  monthly_alloc?: number | null   // 毎月この口座へ振り分ける計画額（配分プラン・任意。列未追加なら undefined）
 }
 
 export interface Category {

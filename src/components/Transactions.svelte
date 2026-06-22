@@ -21,6 +21,7 @@
   let fType = $state<TxType | ''>('')
   let fCat = $state('')
   let fPerson = $state('')
+  let fAccount = $state('')
   let editing = $state<Transaction | null>(null)
   let showImport = $state(false)
 
@@ -36,6 +37,9 @@
     return [...map.entries()]
   })
 
+  // 口座フィルタ中の支出合計（楽天カード等の「今月いくら使ったか」を分離して把握）
+  const acctSpent = $derived(txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0))
+
   async function load() {
     loading = true
     const r = budgetMonthRange(year, month)
@@ -46,7 +50,7 @@
       accMap = Object.fromEntries(accounts.map(a => [a.id, a]))
     }
     txs = await listTransactions(ymd(r.start), ymd(r.end), {
-      type: fType, categoryId: fCat, person: fPerson,
+      type: fType, categoryId: fCat, person: fPerson, accountId: fAccount,
     })
     loading = false
   }
@@ -86,7 +90,18 @@
     <select bind:value={fPerson} onchange={load}>
       <option value="">全員</option><option value="ゆうき">ゆうき</option><option value="えみ">えみ</option>
     </select>
+    <select bind:value={fAccount} onchange={load}>
+      <option value="">全口座</option>
+      {#each accounts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
+    </select>
   </div>
+
+  {#if fAccount && !loading}
+    <section class="summary acct-summary">
+      <div class="as-label">{accName(fAccount)}（{month}月の支出）</div>
+      <div class="as-amt">{yen(acctSpent)}</div>
+    </section>
+  {/if}
 
   <button class="add-inline" onclick={() => showImport = true}>📄 給与PDFを取り込む</button>
 
@@ -113,7 +128,7 @@
             {:else}
               <div class="tx-main">
                 <span class="tx-name">{t.memo || catName(t.category_id)}</span>
-                <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''}</span>
+                <span class="tx-sub">{catName(t.category_id)}{t.person ? ' · ' + t.person : ''}{t.account_id ? ' · ' + accName(t.account_id) : ''}</span>
               </div>
               <span class="tx-amt {t.type === 'income' ? 'pos' : 'neg'}">{t.type === 'income' ? '+' : '−'}{yen(t.amount)}</span>
             {/if}

@@ -21,8 +21,11 @@ create table accounts (
   color          text,
   sort_order     integer not null default 0,
   archived       boolean not null default false,
+  monthly_alloc  integer,                       -- 毎月この口座へ振り分ける計画額（配分プラン用・後から追加した列）
   created_at     timestamptz not null default now()
 );
+-- 既存DBには以下を実行（列追加）。未追加でもアプリは動く（配分プラン未設定として扱う）：
+--   alter table accounts add column if not exists monthly_alloc integer;
 
 -- ---------- カテゴリ ----------
 -- division = 会計区分：収入 / 税金・社保 / 貯蓄 / 固定費 / 変動費
