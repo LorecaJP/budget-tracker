@@ -5,6 +5,7 @@
   import type { Transaction, Category, Account, TxType } from '../lib/types'
   import AddTransaction from './AddTransaction.svelte'
   import PayslipImport from './PayslipImport.svelte'
+  import TxIcon from './TxIcon.svelte'
 
   const today = budgetMonthOf(new Date())
   let year = $state(today.year)
@@ -63,9 +64,11 @@
   }
   function catName(id: string | null) { return id && cats[id] ? cats[id].name : '未分類' }
   function accName(id: string | null) { return id && accMap[id] ? accMap[id].name : '—' }
+  function catDiv(id: string | null): string | null { return (id && cats[id]?.division) || null }
 </script>
 
 <div class="screen">
+  <h1 class="lg-title">取引</h1>
   <div class="month-nav">
     <button class="nav-btn" onclick={() => go(-1)} aria-label="前の月">‹</button>
     <span class="month-title">{year}年{month}月</span>
@@ -100,6 +103,7 @@
       <ul class="tx-list">
         {#each list as t (t.id)}
           <li class="tx-row tappable" onclick={() => editing = t}>
+            <TxIcon type={t.type} division={catDiv(t.category_id)} />
             {#if t.type === 'transfer'}
               <div class="tx-main">
                 <span class="tx-name">{t.memo || '振替'}</span>

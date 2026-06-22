@@ -37,9 +37,10 @@
 </script>
 
 <div class="screen">
+  <h1 class="lg-title">特別費</h1>
   <div class="month-nav">
     <button class="nav-btn" onclick={() => { year--; load() }} aria-label="前の年">‹</button>
-    <span class="month-title">{year}年の特別費</span>
+    <span class="month-title">{year}年</span>
     <button class="nav-btn" onclick={() => { year++; load() }} aria-label="次の年">›</button>
   </div>
 
