@@ -89,7 +89,7 @@
 <div class="screen">
   <div class="month-nav">
     <button class="nav-btn" onclick={() => go(-1)} aria-label="前の年">‹</button>
-    <span class="month-title">{year}年（暦年）</span>
+    <span class="month-title">{year}年</span>
     <button class="nav-btn" onclick={() => go(1)} aria-label="次の年">›</button>
   </div>
 
@@ -97,7 +97,7 @@
     <p class="state">集計中…</p>
   {:else}
     <section class="card">
-      <div class="card-label">えみ 扶養トラッカー（上限 {yen(cap)}）</div>
+      <div class="card-label">えみ あとどれくらい働ける？</div>
       <div class="fy-head">
         <span class="fy-dots">
           <i class="g" class:on={signal === 'green'}></i>
@@ -130,7 +130,7 @@
     <section class="card">
       <div class="card-label">明細</div>
       <div class="fy-kv"><span class="k">課税支給額</span><span class="v">{yen(taxableYtd)} / {yen(cap)}</span></div>
-      <div class="fy-kv"><span class="k">総支給（参考）</span><span class="v">{yen(grossYtd)}</span></div>
+      <div class="fy-kv"><span class="k">総支給（交通費込み）</span><span class="v">{yen(grossYtd)}</span></div>
       {#if hasCommute}
         <div class="fy-kv"><span class="k">通勤手当</span><span class="v">{yen(commuteYtd)}</span></div>
       {/if}
@@ -141,7 +141,7 @@
         <div class="fy-kv"><span class="k">年間の見込み</span><span class="v {projected > cap ? 'neg' : ''}">{yen(projected)}</span></div>
       {/if}
       {#if hasCommute || minutesYtd > 0}
-        <p class="fy-note">通勤手当・総労働時間は取込済みの月の合計です。</p>
+        <p class="fy-note">※通勤手当・総労働時間は、給与明細を取り込んだ月のぶんだけ合計しています（取り込んでいない月は含みません）。</p>
       {/if}
     </section>
 
@@ -158,7 +158,7 @@
       {/each}
     </ul>
 
-    <p class="hint">暦年（1〜12月）・支給日ベースで集計（年末調整還付は報酬ではないため対象外）。<strong>上限判定は課税支給額（通勤手当を除く＝103万手当・税の正しい基準）</strong>。明細を取り込むと課税支給額・通勤手当・総労働時間が自動で貯まります（未取込の月は総支給で代用）。「1ヶ月あたり」は今年の残りを残り月数で割った目安です。</p>
-    <p class="hint">⚠️ 社保は別軸：2026年9月までは「週20時間以上＋月8.8万円以上」、<strong>2026年10月からは賃金要件が撤廃され「週20時間以上」だけ</strong>で加入対象。総労働時間の週平均が20時間に近いか要注意。時給・上限は設定タブで変更できます。</p>
+    <p class="hint">1〜12月の「えみ給料」を<strong>給料日</strong>で集計しています。上限（103万円）は<strong>交通費を除いた金額</strong>で判定します。給与明細を取り込むほど、通勤手当・総労働時間も正確になります（取り込んでいない月は総支給で代用）。「1ヶ月あたり」は <strong>今年の残り ÷ 残りの月数</strong> の目安です。</p>
+    <p class="hint">⚠️ 社会保険の「壁」は別ものです。2026年9月までは〈週20時間以上 かつ 月8.8万円以上〉で加入。<strong>2026年10月からは金額の条件がなくなり、〈週20時間以上〉だけ</strong>で加入対象になります。週の労働時間が20時間に近づいたら注意してください。（時給・上限は設定タブで変更できます）</p>
   {/if}
 </div>
