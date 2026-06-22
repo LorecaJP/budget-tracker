@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>扶養トラッカー 案A（信号3状態）</title>
+<title>扶養トラッカー 案A（信号・最新）</title>
 <style>
   :root{
     --bg:#FBFAF7; --surface:#fff; --ink:#1C2430; --muted:#6B7280;
@@ -20,7 +20,7 @@
   header.top h1{font-size:18px;margin:0 0 6px}
   header.top p{font-size:13px;color:var(--muted);margin:0 0 4px;line-height:1.6}
   .pill-note{display:inline-block;background:var(--green-soft);color:var(--green);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;margin-top:6px}
-  .legend{font-size:12px;color:var(--muted);line-height:1.8;margin:8px 0 0}
+  .legend{font-size:12px;color:var(--muted);line-height:1.9;margin:8px 0 0}
   .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:3px}
   .sw.g{background:var(--green)} .sw.a{background:var(--amber)} .sw.r{background:var(--red)}
 
@@ -39,15 +39,15 @@
 
   hr{border:none;border-top:1px solid var(--line);margin:14px 0}
 
-  .grid4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .tile{border-radius:14px;padding:13px 14px}
+  .gl{font-size:13px;font-weight:800;margin:0 0 7px}
+  .gl.mt{margin-top:14px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{border-radius:14px;padding:14px;display:flex;align-items:center;gap:9px}
   .tile.time{background:var(--green-soft);color:var(--green)}
   .tile.money{background:var(--blue-soft);color:var(--blue)}
   .tile.off{background:#F2F1EC;color:var(--muted)}
-  .tt{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700}
-  .tt .lab{color:var(--muted);font-weight:600}
-  .ic{width:17px;height:17px;flex:none}
-  .num{font-size:27px;font-weight:800;margin-top:7px;line-height:1.05}
+  .ic{width:22px;height:22px;flex:none}
+  .num{font-size:26px;font-weight:800;line-height:1.05}
   .num small{font-size:14px;font-weight:800;margin-left:2px}
 
   .overnote{margin-top:12px;background:var(--red-soft);color:var(--red);font-weight:700;font-size:13px;padding:9px 12px;border-radius:12px;text-align:center}
@@ -63,107 +63,93 @@
 <body>
 
 <header class="top">
-  <h1>案A（信号の3状態）</h1>
-  <p>「今月あと」→<b>「1ヶ月あたり」</b>に変更。<b>緑・黄・赤</b>の3状態を並べました。ヘッダーから％を外し、<b>バーの下</b>に小さく入れています。</p>
+  <h1>案A（信号・最新）</h1>
+  <p>ラベルは<b>「今年あと」「1ヶ月あたりあと」</b>に統一（時間=時計＝緑／お金=お札＝青で区別）。％はバーの下に。</p>
   <span class="pill-note">これでOKなら本実装します</span>
   <p class="legend">
-    <span class="sw g"></span><b>緑＝余裕</b>（上限の〜79%）：まだ働けます<br>
-    <span class="sw a"></span><b>黄＝注意</b>（80〜99%）：そろそろ注意<br>
-    <span class="sw r"></span><b>赤＝超過</b>（100%以上）：上限を超えました<br>
-    ※閾値（80%など）は後で自由に変えられます
+    <span class="sw g"></span><b>緑</b>＝〜79%：まだ働けます<br>
+    <span class="sw a"></span><b>黄</b>＝80〜95%：そろそろ注意<br>
+    <span class="sw r"></span><b>赤</b>＝96%〜：上限まであとわずか／超えたら超過表示
   </p>
 </header>
 
 <div class="wrap">
 
-  <!-- 状態1：緑 -->
-  <div class="label">① 余裕（緑） — 今 41%</div>
+  <!-- 緑 41% -->
+  <div class="label">① 緑（41%）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head">
-      <span class="dots"><i class="g on"></i><i class="a"></i><i class="r"></i></span>
-      <span class="msg g">まだ働けます</span>
-    </div>
+    <div class="head"><span class="dots"><i class="g on"></i><i class="a"></i><i class="r"></i></span><span class="msg g">まだ働けます</span></div>
     <hr>
-    <div class="grid4">
-      <div class="tile time">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">今年 あと働ける</span></div>
-        <div class="num">512<small>時間</small></div>
-      </div>
-      <div class="tile money">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">今年 あと稼げる</span></div>
-        <div class="num">¥604,452</div>
-      </div>
-      <div class="tile time">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">1ヶ月あたり 働ける</span></div>
-        <div class="num">73<small>時間</small></div>
-      </div>
-      <div class="tile money">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">1ヶ月あたり 稼げる</span></div>
-        <div class="num">¥86,350</div>
-      </div>
+    <div class="gl">今年あと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">512<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥604,452</span></div>
+    </div>
+    <div class="gl mt">1ヶ月あたりあと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">73<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥86,350</span></div>
     </div>
     <div class="thinbar"><i style="width:41%"></i></div>
     <div class="capnote"><span>103万円まで</span><span>41%</span></div>
   </div>
 
-  <!-- 状態2：黄 -->
-  <div class="label">② 注意（黄） — 88%</div>
+  <!-- 黄 88% -->
+  <div class="label">② 黄（88%）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head">
-      <span class="dots"><i class="g"></i><i class="a on"></i><i class="r"></i></span>
-      <span class="msg a">そろそろ注意</span>
-    </div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a on"></i><i class="r"></i></span><span class="msg a">そろそろ注意</span></div>
     <hr>
-    <div class="grid4">
-      <div class="tile time">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">今年 あと働ける</span></div>
-        <div class="num">104<small>時間</small></div>
-      </div>
-      <div class="tile money">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">今年 あと稼げる</span></div>
-        <div class="num">¥123,600</div>
-      </div>
-      <div class="tile time">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">1ヶ月あたり 働ける</span></div>
-        <div class="num">35<small>時間</small></div>
-      </div>
-      <div class="tile money">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">1ヶ月あたり 稼げる</span></div>
-        <div class="num">¥41,200</div>
-      </div>
+    <div class="gl">今年あと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">104<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥123,600</span></div>
+    </div>
+    <div class="gl mt">1ヶ月あたりあと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">35<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥41,200</span></div>
     </div>
     <div class="thinbar"><i class="a" style="width:88%"></i></div>
     <div class="capnote"><span>103万円まで</span><span>88%</span></div>
   </div>
 
-  <!-- 状態3：赤 -->
-  <div class="label">③ 超過（赤） — 105%</div>
+  <!-- 赤・未超過 97% -->
+  <div class="label">③ 赤（97% ・まだ超えていない）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head">
-      <span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span>
-      <span class="msg r">上限を超えました</span>
-    </div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">上限まで あとわずか</span></div>
     <hr>
-    <div class="grid4">
-      <div class="tile off">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">今年 あと働ける</span></div>
-        <div class="num">0<small>時間</small></div>
-      </div>
-      <div class="tile off">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">今年 あと稼げる</span></div>
-        <div class="num">¥0</div>
-      </div>
-      <div class="tile off">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="lab">1ヶ月あたり 働ける</span></div>
-        <div class="num">0<small>時間</small></div>
-      </div>
-      <div class="tile off">
-        <div class="tt"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="lab">1ヶ月あたり 稼げる</span></div>
-        <div class="num">¥0</div>
-      </div>
+    <div class="gl">今年あと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">26<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥30,900</span></div>
+    </div>
+    <div class="gl mt">1ヶ月あたりあと</div>
+    <div class="row2">
+      <div class="tile time"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">13<small>時間</small></span></div>
+      <div class="tile money"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥15,450</span></div>
+    </div>
+    <div class="thinbar"><i class="r" style="width:97%"></i></div>
+    <div class="capnote"><span>103万円まで</span><span>97%</span></div>
+  </div>
+
+  <!-- 赤・超過 105% -->
+  <div class="label">④ 赤（105% ・超過）</div>
+  <div class="card">
+    <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">上限を超えました</span></div>
+    <hr>
+    <div class="gl">今年あと</div>
+    <div class="row2">
+      <div class="tile off"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">0<small>時間</small></span></div>
+      <div class="tile off"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥0</span></div>
+    </div>
+    <div class="gl mt">1ヶ月あたりあと</div>
+    <div class="row2">
+      <div class="tile off"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span class="num">0<small>時間</small></span></div>
+      <div class="tile off"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg><span class="num">¥0</span></div>
     </div>
     <div class="overnote">⚠️ 上限を ¥53,000 超えています</div>
     <div class="thinbar"><i class="r" style="width:100%"></i></div>
@@ -172,10 +158,7 @@
 
 </div>
 
-<p class="foot">
-  アイコンは <b>Lucide</b>（clock／banknote）で統一。<br>
-  数字は緑/黄が実データ風の例、赤は超過の見え方サンプルです。
-</p>
+<p class="foot">アイコンは <b>Lucide</b>（clock／banknote）で統一。緑/黄の数字は例、赤2種は見え方サンプルです。</p>
 
 </body>
 </html>
