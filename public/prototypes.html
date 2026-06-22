@@ -42,13 +42,14 @@
   .gl{font-size:13px;font-weight:800;margin:0 0 7px}
   .gl.mt{margin-top:14px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .tile{border-radius:14px;padding:14px;display:flex;align-items:center;gap:9px}
+  /* 全タイル同じ固定サイズ：幅=1fr（左右同じ）・高さ=固定62px（上下同じ）・折り返さない */
+  .tile{border-radius:14px;padding:0 14px;height:62px;display:flex;align-items:center;gap:8px;overflow:hidden}
   .tile.time{background:var(--green-soft);color:var(--green)}
   .tile.money{background:var(--blue-soft);color:var(--blue)}
   .tile.off{background:#F2F1EC;color:var(--muted)}
-  .ic{width:22px;height:22px;flex:none}
-  .num{font-size:26px;font-weight:800;line-height:1.05}
-  .num small{font-size:14px;font-weight:800;margin-left:2px}
+  .ic{width:19px;height:19px;flex:none}
+  .num{font-size:22px;font-weight:800;line-height:1.05;white-space:nowrap}
+  .num small{font-size:13px;font-weight:800;margin-left:2px}
 
   .overnote{margin-top:12px;background:var(--red-soft);color:var(--red);font-weight:700;font-size:13px;padding:9px 12px;border-radius:12px;text-align:center}
   .thinbar{height:8px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:14px}
@@ -67,9 +68,9 @@
   <p>ラベルは<b>「今年あと」「1ヶ月あたりあと」</b>に統一（時間=時計＝緑／お金=お札＝青で区別）。％はバーの下に。</p>
   <span class="pill-note">これでOKなら本実装します</span>
   <p class="legend">
-    <span class="sw g"></span><b>緑</b>＝〜79%：まだ働けます<br>
-    <span class="sw a"></span><b>黄</b>＝80〜95%：そろそろ注意<br>
-    <span class="sw r"></span><b>赤</b>＝96%〜：上限まであとわずか／超えたら超過表示
+    <span class="sw g"></span><b>緑</b>＝〜79%：まだまだ大丈夫<br>
+    <span class="sw a"></span><b>黄</b>＝80〜95%：そろそろ気をつけてね<br>
+    <span class="sw r"></span><b>赤</b>＝96%〜：もうギリギリ（超えたら「超えちゃった」）
   </p>
 </header>
 
@@ -79,7 +80,7 @@
   <div class="label">① 緑（41%）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head"><span class="dots"><i class="g on"></i><i class="a"></i><i class="r"></i></span><span class="msg g">まだ働けます</span></div>
+    <div class="head"><span class="dots"><i class="g on"></i><i class="a"></i><i class="r"></i></span><span class="msg g">まだまだ大丈夫</span></div>
     <hr>
     <div class="gl">今年あと</div>
     <div class="row2">
@@ -99,7 +100,7 @@
   <div class="label">② 黄（88%）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head"><span class="dots"><i class="g"></i><i class="a on"></i><i class="r"></i></span><span class="msg a">そろそろ注意</span></div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a on"></i><i class="r"></i></span><span class="msg a">そろそろ気をつけてね</span></div>
     <hr>
     <div class="gl">今年あと</div>
     <div class="row2">
@@ -119,7 +120,7 @@
   <div class="label">③ 赤（97% ・まだ超えていない）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">上限まで あとわずか</span></div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">もうギリギリ</span></div>
     <hr>
     <div class="gl">今年あと</div>
     <div class="row2">
@@ -139,7 +140,7 @@
   <div class="label">④ 赤（105% ・超過）</div>
   <div class="card">
     <div class="cardlabel">えみ 扶養トラッカー（2026年）・上限 ¥1,030,000</div>
-    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">上限を超えました</span></div>
+    <div class="head"><span class="dots"><i class="g"></i><i class="a"></i><i class="r on"></i></span><span class="msg r">超えちゃった</span></div>
     <hr>
     <div class="gl">今年あと</div>
     <div class="row2">
