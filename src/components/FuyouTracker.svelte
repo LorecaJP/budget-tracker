@@ -32,13 +32,12 @@
     for (const t of txs) { const m = Number(t.date.slice(5, 7)); if (m >= 1 && m <= 12) a[m - 1] += t.amount }
     return a
   })
-  // 明細の追加項目（課税支給額・通勤手当・総労働時間）を暦月ごとに集計
+  // 明細の追加項目（通勤手当・総労働時間）を暦月ごとに集計
   const detM = $derived.by(() => {
-    const a = Array.from({ length: 12 }, () => ({ taxable: null as number | null, commute: null as number | null, minutes: null as number | null }))
+    const a = Array.from({ length: 12 }, () => ({ commute: null as number | null, minutes: null as number | null }))
     for (const d of details) {
       const m = Number(d.pay_date.slice(5, 7)); if (m < 1 || m > 12) continue
       const c = a[m - 1]
-      if (d.taxable != null) c.taxable = (c.taxable ?? 0) + d.taxable
       if (d.commute != null) c.commute = (c.commute ?? 0) + d.commute
       if (d.work_minutes != null) c.minutes = (c.minutes ?? 0) + d.work_minutes
     }
@@ -48,9 +47,10 @@
   const cap = $derived(cfg.year_cap)
   const wage = $derived(cfg.hourly_wage)
   const grossYtd = $derived(grossM.reduce((s, n) => s + n, 0))
-  // 課税支給額：月ごとに明細があればそれ、無ければ総支給でフォールバック（＝上限判定の基準）
-  const taxableYtd = $derived(grossM.reduce((s, n, i) => s + (detM[i].taxable ?? n), 0))
   const commuteYtd = $derived(detM.reduce((s, c) => s + (c.commute ?? 0), 0))
+  // 課税支給額＝総支給−通勤手当（明細の「課税支給額」は年内累計のため合算には使わない）。
+  // 通勤手当が未取込の月はその月の総支給をそのまま課税扱い（安全側）。
+  const taxableYtd = $derived(grossYtd - commuteYtd)
   const minutesYtd = $derived(detM.reduce((s, c) => s + (c.minutes ?? 0), 0))
   const hasCommute = $derived(detM.some(c => c.commute != null))
   const monthsWithHours = $derived(detM.filter(c => c.minutes != null).length)
@@ -93,7 +93,7 @@
       </div>
 
       <div class="bp-track"><div class="bp-fill {over ? 'over' : ''}" style="width:{pct}%"></div></div>
-      <div class="kv" style="margin-top:8px"><span>課税支給額（手当・税の基準）</span><span class="num">{yen(taxableYtd)} / {yen(cap)}（{pct}%）</span></div>
+      <div class="kv" style="margin-top:8px"><span>課税支給額（総支給−通勤手当）</span><span class="num">{yen(taxableYtd)} / {yen(cap)}（{pct}%）</span></div>
       <div class="kv" style="margin-top:6px"><span>総支給（通勤手当込み・参考）</span><span class="num">{yen(grossYtd)}</span></div>
       {#if hasCommute}
         <div class="kv" style="margin-top:6px"><span>通勤手当（判明分の合計）</span><span class="num">{yen(commuteYtd)}</span></div>

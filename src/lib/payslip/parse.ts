@@ -77,7 +77,8 @@ export function parsePayslipText(text: string): ParsedPayslip {
     deductions,
     base: numberAfter('基本給'),
     commute: numberAfter('通勤手当'),
-    taxable: numberAfter('課税支給額') ?? numberAfter('課税対象額'),
+    // 課税支給額は明細上「年内累計」なので取り込まない（扶養タブで 総支給−通勤手当 として算出）
+    taxable: null,
     workMinutes: minutesAfter('総労働時間') ?? minutesAfter('労働時間'),
   }
 }
