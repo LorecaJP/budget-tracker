@@ -9,6 +9,10 @@
   --pos: #1F6F58;   /* 収入・プラス */
   --neg: #B4452E;   /* 支出・マイナス */
   --accent: #1F6F58;
+  /* 扶養トラッカーのタイル/信号 */
+  --fy-blue: #2A577E; --fy-blue-bg: #EAF0F6;
+  --fy-amber: #B5821A; --fy-amber-bg: #F7EBD3;
+  --fy-green-bg: #E3F0EA; --fy-red-bg: #F6E2DB; --fy-off-bg: #EFEDE6;
   --radius: 14px;
   --radius-sm: 10px;
   --maxw: 480px;
@@ -27,6 +31,9 @@
     --pos: #4FB79A;
     --neg: #E0795C;
     --accent: #4FB79A;
+    --fy-blue: #7FB2DE; --fy-blue-bg: #1E2730;
+    --fy-amber: #D2A44E; --fy-amber-bg: #2C2820;
+    --fy-green-bg: #1E2A28; --fy-red-bg: #2E2320; --fy-off-bg: #23262D;
   }
 }
 
@@ -168,14 +175,32 @@ button { font-family: inherit; cursor: pointer; }
 .bp-fill.over { background: var(--neg); }
 .num { font-variant-numeric: tabular-nums; }
 
-/* 扶養トラッカー：金額と時間を同じ大きさで2つ並べる */
-.fuyou-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 2px 0 0; }
-.fuyou-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.fuyou-big { font-size: 27px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; }
-.fuyou-unit { font-size: 15px; font-weight: 600; margin-left: 2px; }
-.fuyou-cap { font-size: 12px; color: var(--muted); }
-.fuyou-sub { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 4px; font-variant-numeric: tabular-nums; }
-.fuyou-note { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+/* 扶養トラッカー ヒーロー（信号＋4タイル） */
+.fy-head { display:flex; align-items:center; gap:10px; }
+.fy-dots { display:flex; gap:6px; }
+.fy-dots i { width:13px; height:13px; border-radius:50%; background:var(--border); }
+.fy-dots i.g.on { background:var(--pos); box-shadow:0 0 0 4px var(--fy-green-bg); }
+.fy-dots i.a.on { background:var(--fy-amber); box-shadow:0 0 0 4px var(--fy-amber-bg); }
+.fy-dots i.r.on { background:var(--neg); box-shadow:0 0 0 4px var(--fy-red-bg); }
+.fy-msg { font-size:18px; font-weight:800; }
+.fy-msg.g { color:var(--pos); } .fy-msg.a { color:var(--fy-amber); } .fy-msg.r { color:var(--neg); }
+.fy-hr { border:none; border-top:1px solid var(--border); margin:14px 0; }
+.fy-gl { font-size:13px; font-weight:800; margin:0 0 7px; }
+.fy-gl.mt { margin-top:14px; }
+.fy-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+/* 全タイル同じ固定サイズ：幅=1fr（左右同じ）・高さ62px固定（上下同じ）・折り返さない */
+.fy-tile { border-radius:14px; padding:0 14px; height:62px; display:flex; align-items:center; gap:8px; overflow:hidden; }
+.fy-tile.time { background:var(--fy-green-bg); color:var(--pos); }
+.fy-tile.money { background:var(--fy-blue-bg); color:var(--fy-blue); }
+.fy-tile.off { background:var(--fy-off-bg); color:var(--muted); }
+.fy-ic { width:19px; height:19px; flex:none; }
+.fy-num { font-size:22px; font-weight:800; line-height:1.05; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fy-num small { font-size:13px; font-weight:800; margin-left:2px; }
+.fy-over { margin-top:12px; background:var(--fy-red-bg); color:var(--neg); font-weight:700; font-size:13px; padding:9px 12px; border-radius:12px; text-align:center; }
+.fy-capnote { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:7px; }
+.bp-fill.amber { background:var(--fy-amber); }
+.bp-fill.red { background:var(--neg); }
+.bp-fill.green { background:var(--pos); }
 
 /* 設定 */
 .seg-wide { width: 100%; margin-bottom: 14px; }
