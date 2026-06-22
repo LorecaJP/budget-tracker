@@ -112,6 +112,7 @@
 </script>
 
 <div class="screen">
+  <h1 class="lg-title">設定</h1>
   <div class="card">
     <div class="budget-row">
       <span class="tx-name">月の開始日</span>

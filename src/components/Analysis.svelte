@@ -93,6 +93,7 @@
 </script>
 
 <div class="screen">
+  <h1 class="lg-title">分析</h1>
   <div class="month-nav">
     <button class="nav-btn" onclick={() => go(-1)} aria-label="前の月">‹</button>
     <span class="month-title">{year}年{month}月</span>

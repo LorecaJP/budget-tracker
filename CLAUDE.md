@@ -69,8 +69,9 @@
    │     └─ ocr.ts         #   Edge Function payslip-ocr 呼び出し
    └─ components/
       ├─ Auth.svelte
-      ├─ Home.svelte
-      ├─ Transactions.svelte    # 「給与PDFを取り込む」ボタンあり
+      ├─ TxIcon.svelte          # 取引の種別/会計区分→色つき丸アイコン（Home/Transactions で共用）
+      ├─ Home.svelte            # 大タイトル＋緑グラデの収支ヒーロー＋グループドリスト
+      ├─ Transactions.svelte    # 「給与PDFを取り込む」ボタンあり。行頭に TxIcon
       ├─ AddTransaction.svelte  # 追加・編集・削除の共通モーダル（支出/収入/振替）
       ├─ Analysis.svelte
       ├─ YearSummary.svelte     # 年間収支ビュー（会計区分×12ヶ月）。タブ「年間」

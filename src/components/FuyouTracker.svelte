@@ -87,6 +87,7 @@
 {/snippet}
 
 <div class="screen">
+  <h1 class="lg-title">扶養</h1>
   <div class="month-nav">
     <button class="nav-btn" onclick={() => go(-1)} aria-label="前の年">‹</button>
     <span class="month-title">{year}年</span>
