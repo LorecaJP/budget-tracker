@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>扶養トラッカー 見やすさ案（プロトタイプ10案）</title>
+<style>
+  :root{
+    --bg:#FBFAF7; --surface:#fff; --ink:#1C2430; --muted:#6B7280;
+    --green:#1F6F58; --green-soft:#E3F0EA; --amber:#C98A1B; --amber-soft:#FBF0DA;
+    --red:#C0492F; --red-soft:#F7E2DC; --track:#ECEAE3; --line:#EBE8E0;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
+    font-variant-numeric:tabular-nums; padding:0 0 60px}
+  .wrap{max-width:430px; margin:0 auto; padding:0 14px}
+  header.top{padding:22px 14px 6px; max-width:430px; margin:0 auto}
+  header.top h1{font-size:19px; margin:0 0 6px}
+  header.top p{font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.6}
+  .pill-note{display:inline-block; background:var(--green-soft); color:var(--green); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; margin-top:6px}
+  .proto{margin:26px 0}
+  .proto > .tag{font-size:13px; font-weight:800; color:var(--green); margin:0 2px 8px; display:flex; gap:8px; align-items:baseline}
+  .proto > .tag .n{background:var(--green); color:#fff; border-radius:8px; padding:2px 9px; font-size:13px}
+  .proto > .tag .d{color:var(--muted); font-weight:600; font-size:12px}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .huge{font-size:64px; font-weight:800; line-height:1; letter-spacing:-1px}
+  .huge small{font-size:24px; font-weight:800; margin-left:4px}
+  .green{color:var(--green)} .amber{color:var(--amber)} .red{color:var(--red)} .muted{color:var(--muted)}
+  .center{text-align:center}
+  hr{border:none; border-top:1px solid var(--line); margin:16px 0}
+  .lead{font-size:18px; margin:2px 0; font-weight:600}
+  .sub{font-size:15px; color:var(--muted); margin:6px 0 0}
+  .small{font-size:13px; color:var(--muted); margin:0}
+  /* signal */
+  .signal{display:flex; gap:10px; align-items:center}
+  .dot{width:18px;height:18px;border-radius:50%;background:var(--track)}
+  .dot.on.g{background:var(--green); box-shadow:0 0 0 5px var(--green-soft)}
+  .dot.on.a{background:var(--amber); box-shadow:0 0 0 5px var(--amber-soft)}
+  .dot.on.r{background:var(--red); box-shadow:0 0 0 5px var(--red-soft)}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .stat b{display:block; font-size:30px; font-weight:800}
+  .stat span{font-size:13px; color:var(--muted)}
+  .biglabel{font-size:16px;font-weight:700;margin:0 0 2px}
+  /* pills */
+  .pillstat{border-radius:16px; padding:16px; display:flex; align-items:center; gap:12px}
+  .pillstat.g{background:var(--green-soft)} .pillstat.b{background:#EAF0F6}
+  .pillstat .ic{font-size:26px}
+  .pillstat .v{font-size:26px;font-weight:800;line-height:1.1}
+  .pillstat .l{font-size:12px;color:var(--muted)}
+  /* bar */
+  .bar{height:22px;border-radius:999px;background:var(--track);overflow:hidden;position:relative}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#3c9a7c);border-radius:999px}
+  .thinbar{height:10px;border-radius:999px;background:var(--track);overflow:hidden}
+  .thinbar > i{display:block;height:100%;background:var(--green)}
+  /* thermo */
+  .thermo{width:64px;height:200px;border-radius:999px;background:var(--track);position:relative;overflow:hidden;margin:0 auto}
+  .thermo > i{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(180deg,#3c9a7c,var(--green));border-radius:999px}
+  .face{font-size:60px;line-height:1}
+  .chip{display:inline-block;background:var(--green-soft);color:var(--green);font-weight:700;font-size:12px;padding:3px 10px;border-radius:999px}
+  .shiftrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .shiftrow span{width:24px;height:30px;border-radius:6px;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:14px}
+  .kv{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:8px}
+  .kv b{color:var(--ink);font-weight:700}
+  .foot{font-size:12px;color:var(--muted);text-align:center;margin:30px 14px}
+  .month-focus .y{opacity:.55}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>扶養トラッカー 見やすさ案（10案）</h1>
+  <p>奥様（数字・ITが苦手）向けに、専門用語を隠して大きく・やさしくした案です。実際のデータで作っています。<br>
+  気に入った案の<b>番号（複数OK）</b>を教えてください。その方向で本物に反映します。</p>
+  <span class="pill-note">確認後、このページとファイルは削除します</span>
+  <p style="margin-top:10px">前提データ：今年の上限 <b>103万円</b>／今 41%（あと <b>¥604,452</b>・<b>約512時間</b>）／今月あと <b>¥86,350・約73時間</b>（残り7ヶ月）</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 案1 ひとことフォーカス -->
+  <div class="proto">
+    <div class="tag"><span class="n">案1</span> ひとことフォーカス <span class="d">数字は1つだけ・言葉で伝える</span></div>
+    <div class="card center">
+      <p class="lead">今月、あと</p>
+      <div class="huge green">73<small>時間</small></div>
+      <p class="lead">はたらけます 🙆‍♀️</p>
+      <p class="sub">金額にすると あと ¥86,350</p>
+      <hr>
+      <p class="small">今年の上限まで まだ余裕です（41%）</p>
+    </div>
+  </div>
+
+  <!-- 案2 信号機 -->
+  <div class="proto">
+    <div class="tag"><span class="n">案2</span> 信号（3色） <span class="d">色でひと目／緑=余裕 黄=注意 赤=超えそう</span></div>
+    <div class="card">
+      <div class="signal" style="margin-bottom:14px">
+        <div class="dot on g"></div><div class="dot"></div><div class="dot"></div>
+        <div style="margin-left:8px;font-size:20px;font-weight:800" class="green">まだ余裕あり</div>
+      </div>
+      <div class="two">
+        <div class="stat"><b class="green">73時間</b><span>今月あと働ける</span></div>
+        <div class="stat"><b class="green">¥86,350</b><span>今月あと稼げる</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 案3 半円メーター -->
+  <div class="proto">
+    <div class="tag"><span class="n">案3</span> メーター（半円ゲージ） <span class="d">針で「どれくらい使ったか」</span></div>
+    <div class="card center">
+      <svg width="220" height="128" viewBox="0 0 220 128" aria-hidden="true">
+        <path d="M20 118 A 90 90 0 0 1 200 118" fill="none" stroke="var(--track)" stroke-width="20" stroke-linecap="round"/>
+        <path d="M20 118 A 90 90 0 0 1 200 118" fill="none" stroke="var(--green)" stroke-width="20" stroke-linecap="round"
+              stroke-dasharray="282.7" stroke-dashoffset="166.8"/>
+      </svg>
+      <div style="margin-top:-6px"><span class="huge green" style="font-size:40px">41<small style="font-size:18px">%</small></span></div>
+      <p class="sub" style="margin-top:8px">今月あと <b class="green">73時間</b> ／ <b class="green">¥86,350</b></p>
+    </div>
+  </div>
+
+  <!-- 案4 温度計 -->
+  <div class="proto">
+    <div class="tag"><span class="n">案4</span> 温度計 <span class="d">上限まで「どれくらい溜まったか」</span></div>
+    <div class="card" style="display:flex;gap:20px;align-items:center">
+      <div class="thermo"><i style="height:41%"></i></div>
+      <div>
+        <p class="biglabel">103万円まで</p>
+        <p class="lead green" style="font-size:26px;margin:2px 0">あと ¥604,452</p>
+        <p class="sub" style="margin-top:4px">＝ あと約 512時間</p>
+        <p class="small" style="margin-top:10px">今月のペースなら 月 ¥86,350・73時間まで</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 案5 ドーナツリング -->
+  <div class="proto">
+    <div class="tag"><span class="n">案5</span> ドーナツ（円グラフ） <span class="d">真ん中に「今月あと」</span></div>
+    <div class="card center">
+      <svg width="184" height="184" viewBox="0 0 184 184">
+        <circle cx="92" cy="92" r="76" fill="none" stroke="var(--track)" stroke-width="18"/>
+        <circle cx="92" cy="92" r="76" fill="none" stroke="var(--green)" stroke-width="18" stroke-linecap="round"
+                stroke-dasharray="477.5" stroke-dashoffset="281.7" transform="rotate(-90 92 92)"/>
+        <text x="92" y="84" text-anchor="middle" font-size="15" fill="#6B7280">今月あと</text>
+        <text x="92" y="112" text-anchor="middle" font-size="30" font-weight="800" fill="#1F6F58">73時間</text>
+      </svg>
+      <p class="sub">金額なら あと ¥86,350 ／ 今年は41%</p>
+    </div>
+  </div>
+
+  <!-- 案6 シフト換算 -->
+  <div class="proto">
+    <div class="tag"><span class="n">案6</span> シフト回数で表示 <span class="d">「あと何回入れる？」（1回6時間で計算）</span></div>
+    <div class="card">
+      <p class="lead center">今月、あと</p>
+      <div class="huge green center">約12<small>回</small></div>
+      <p class="lead center">シフトに入れます</p>
+      <div class="shiftrow" style="justify-content:center">
+        <span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span><span>✓</span>
+      </div>
+      <p class="small center" style="margin-top:12px">＝ あと約73時間・¥86,350（1回6時間で計算）</p>
+    </div>
+  </div>
+
+  <!-- 案7 顔キャラ -->
+  <div class="proto">
+    <div class="tag"><span class="n">案7</span> 顔で気持ちを表示 <span class="d">😊余裕 → 😐注意 → 😟危険</span></div>
+    <div class="card center">
+      <div class="face">😊</div>
+      <p class="lead" style="margin-top:6px">まだ大丈夫！</p>
+      <div class="two" style="margin-top:14px">
+        <div class="stat"><b class="green">73時間</b><span>今月あと</span></div>
+        <div class="stat"><b class="green">¥86,350</b><span>今月あと</span></div>
+      </div>
+      <p class="small" style="margin-top:14px">今年の上限まで あと ¥604,452（41%）</p>
+    </div>
+  </div>
+
+  <!-- 案8 大きな2つのピル -->
+  <div class="proto">
+    <div class="tag"><span class="n">案8</span> 大きな2つのカード <span class="d">時間とお金をアイコン付きで</span></div>
+    <div class="card">
+      <p class="biglabel center" style="margin-bottom:12px">今月あと はたらける分</p>
+      <div style="display:grid;gap:10px">
+        <div class="pillstat g"><div class="ic">⏰</div><div><div class="v green">73時間</div><div class="l">あと働ける</div></div></div>
+        <div class="pillstat b"><div class="ic">💰</div><div><div class="v" style="color:#2a577e">¥86,350</div><div class="l">あと稼げる</div></div></div>
+      </div>
+      <p class="small center" style="margin-top:12px">今年トータルでは あと 512時間・¥604,452</p>
+    </div>
+  </div>
+
+  <!-- 案9 1本バー＋やさしい言葉 -->
+  <div class="proto">
+    <div class="tag"><span class="n">案9</span> バー1本＋やさしい言葉 <span class="d">いちばんシンプル</span></div>
+    <div class="card">
+      <p class="lead">103万円まで、あと <span class="green" style="font-weight:800">¥604,452</span></p>
+      <div class="bar" style="margin:12px 0"><i style="width:41%"></i></div>
+      <div class="kv"><span>今 41%</span><span>上限 103万円</span></div>
+      <hr>
+      <p class="lead center" style="font-size:16px">今月は <b class="green">73時間</b>・<b class="green">¥86,350</b> まで 🙆‍♀️</p>
+    </div>
+  </div>
+
+  <!-- 案10 今月フォーカス（今年は控えめ） -->
+  <div class="proto">
+    <div class="tag"><span class="n">案10</span> 「今月」を主役に <span class="d">今月を大きく・今年は小さく</span></div>
+    <div class="card month-focus">
+      <span class="chip">今月 はたらける分</span>
+      <div class="two" style="margin-top:12px">
+        <div class="stat"><b class="green" style="font-size:38px">73<span style="font-size:16px">時間</span></b><span>あと働ける</span></div>
+        <div class="stat"><b class="green" style="font-size:38px">¥86,350</b><span>あと稼げる</span></div>
+      </div>
+      <hr>
+      <div class="y">
+        <div class="kv"><span>今年トータル あと</span><b>512時間 ／ ¥604,452</b></div>
+        <div class="thinbar" style="margin-top:8px"><i style="width:41%"></i></div>
+        <div class="kv"><span>103万円まで</span><span>41%</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="foot">プロトタイプ（確認用）・実データで作成。気に入った案の番号を教えてください。<br>このページは確認後に削除します。</p>
+
+</body>
+</html>
