@@ -67,6 +67,13 @@
   const paidMonths = $derived(grossM.filter(v => v > 0).length)
   const projected = $derived(paidMonths > 0 ? Math.round((base / paidMonths) * 12) : 0)
   const isThisYear = $derived(year === now.getFullYear())
+
+  // 残りの月数（今年のみ）で「あと…」を割り戻した1ヶ月あたりの目安。
+  // 今月が未払いなら今月を含める（12 − 今月 + 1）、支払い済みなら除く。
+  const curMonth = now.getMonth() + 1
+  const monthsLeft = $derived(isThisYear ? Math.max(0, 12 - curMonth + (grossM[curMonth - 1] > 0 ? 0 : 1)) : (year > now.getFullYear() ? 12 : 0))
+  const perMonthYen = $derived(monthsLeft > 0 ? Math.round(remaining / monthsLeft) : 0)
+  const perMonthHours = $derived(monthsLeft > 0 ? Math.floor(remainHours / monthsLeft) : 0)
 </script>
 
 <div class="screen">
@@ -85,15 +92,20 @@
         <div class="fuyou-stat">
           <div class="fuyou-big {over ? 'neg' : 'pos'}">{over ? '−' + yen(overage) : yen(remaining)}</div>
           <div class="fuyou-cap">{over ? '超過した金額' : 'あと稼げる金額'}（課税）</div>
+          {#if !over && monthsLeft > 0}<div class="fuyou-sub">月あたり ≈ {yen(perMonthYen)}</div>{/if}
         </div>
         <div class="fuyou-stat">
           <div class="fuyou-big {over ? 'neg' : 'pos'}">約{remainHours.toLocaleString('ja-JP')}<span class="fuyou-unit">時間</span></div>
           <div class="fuyou-cap">あと働ける時間（時給{yen(wage)}）</div>
+          {#if !over && monthsLeft > 0}<div class="fuyou-sub">月あたり ≈ {perMonthHours.toLocaleString('ja-JP')}時間</div>{/if}
         </div>
       </div>
+      {#if !over && monthsLeft > 0}<p class="fuyou-note">残り{monthsLeft}ヶ月で割った1ヶ月あたりの目安</p>{/if}
+      <div class="bp-track" style="margin-top:12px"><div class="bp-fill {over ? 'over' : ''}" style="width:{pct}%"></div></div>
+    </section>
 
-      <div class="bp-track"><div class="bp-fill {over ? 'over' : ''}" style="width:{pct}%"></div></div>
-      <div class="kv" style="margin-top:8px"><span>課税支給額（総支給−通勤手当）</span><span class="num">{yen(taxableYtd)} / {yen(cap)}（{pct}%）</span></div>
+    <section class="card">
+      <div class="kv"><span>課税支給額（総支給−通勤手当）</span><span class="num">{yen(taxableYtd)} / {yen(cap)}（{pct}%）</span></div>
       <div class="kv" style="margin-top:6px"><span>総支給（通勤手当込み・参考）</span><span class="num">{yen(grossYtd)}</span></div>
       {#if hasCommute}
         <div class="kv" style="margin-top:6px"><span>通勤手当（判明分の合計）</span><span class="num">{yen(commuteYtd)}</span></div>
