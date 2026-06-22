@@ -201,3 +201,16 @@ export async function listPayslipDetails(year: number, person = 'えみ'): Promi
   if (error || !data) return []   // テーブル未作成なら空
   return data as PayslipDetail[]
 }
+
+// 給与明細の再取込時、同じ明細で前回登録した取引（収入＋控除）を置き換えるために削除する。
+// memo の識別マーカー(#ps:...)が一致するもの、または旧データ（マーカー無し）の同一人・同日のOCR取引を消す。
+export async function deleteOcrPayslipTx(date: string, person: string | null, marker: string): Promise<number> {
+  let q = supabase.from('transactions').select('id, memo').eq('date', date).eq('source', 'ocr')
+  if (person) q = q.eq('person', person)   // 別人の明細は消さない
+  const { data } = await q
+  const ids = (data ?? [])
+    .filter(t => { const m = (t as { memo?: string }).memo ?? ''; return m.includes(marker) || !m.includes('#ps:') })
+    .map(t => (t as { id: string }).id)
+  if (ids.length) await supabase.from('transactions').delete().in('id', ids)
+  return ids.length
+}

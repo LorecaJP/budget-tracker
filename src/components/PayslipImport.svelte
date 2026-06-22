@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { yen, ymd, budgetMonthOf } from '../lib/month'
-  import { listAccounts, listCategories, listTransactions, insertTransaction, upsertPayslipDetail } from '../lib/db'
+  import { listAccounts, listCategories, listTransactions, insertTransaction, upsertPayslipDetail, deleteOcrPayslipTx } from '../lib/db'
   import type { Account, Category } from '../lib/types'
   import type { ParsedPayslip, PayslipDeduction } from '../lib/payslip/types'
 
@@ -30,8 +30,8 @@
   let memo = $state('')
   let statedNet = $state<number | null>(null)   // 明細記載の差引支給額（計算値との照合用）
   let kind = $state<'salary' | 'bonus'>('salary')
-  // 扶養トラッカー用の追加項目（課税支給額・通勤手当・総労働時間）
-  let taxable = $state<number | null>(null)
+  // 扶養トラッカー用の追加項目（通勤手当・総労働時間）。
+  // ※課税支給額は明細上「年内累計」なので取り込まない（扶養タブで 総支給−通勤手当 として算出）。
   let commute = $state<number | null>(null)
   let workTime = $state('')                      // 「HH:MM」または時間数で入力
 
@@ -91,7 +91,6 @@
     deductions = p.deductions.map(d => ({ ...d }))
     memo = [p.periodLabel, p.base ? `基本給${p.base.toLocaleString('ja-JP')}` : '', p.commute ? `通勤手当${p.commute.toLocaleString('ja-JP')}` : '']
       .filter(Boolean).join(' / ')
-    taxable = p.taxable
     commute = p.commute
     workTime = fmtWorkTime(p.workMinutes)
     const bank = accounts.find(a => a.type === 'bank') ?? accounts[0]
@@ -156,9 +155,13 @@
     saving = true
     const p = person || null
     const acc = accountId || null
+    // 再取込（同じ人・支給日・種別）は前回分を置き換える＝二重登録を防ぐ。
+    // memo にマーカーを付け、保存前に同マーカー（と旧マーカー無しの同人・同日OCR）を削除する。
+    const marker = `#ps:${p ?? '-'}:${payDate}:${kind}`
+    await deleteOcrPayslipTx(payDate, p, marker)
     const reqs = [
       insertTransaction({ date: payDate, amount: Math.round(gross), type: 'income',
-        category_id: catByName[incomeCatName]?.id ?? null, account_id: acc, person: p, memo, source: 'ocr' }),
+        category_id: catByName[incomeCatName]?.id ?? null, account_id: acc, person: p, memo: `${memo} ${marker}`.trim(), source: 'ocr' }),
     ]
     for (const d of deductions) {
       const amt = Math.round(Number(d.amount) || 0)
@@ -166,11 +169,11 @@
       if (amt > 0) {
         // 控除 = tax区分の支出として記録
         reqs.push(insertTransaction({ date: payDate, amount: amt, type: 'expense',
-          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: d.label || '控除', source: 'ocr' }))
+          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: `${d.label || '控除'} ${marker}`, source: 'ocr' }))
       } else {
         // マイナス控除（年末調整還付など）＝ 還付。金額は正にして収入として記録する。
         reqs.push(insertTransaction({ date: payDate, amount: -amt, type: 'income',
-          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: d.label || '還付', source: 'ocr' }))
+          category_id: catByName[d.label]?.id ?? null, account_id: acc, person: p, memo: `${d.label || '還付'} ${marker}`, source: 'ocr' }))
       }
     }
     const results = await Promise.all(reqs)
@@ -180,7 +183,7 @@
     if (kind === 'salary' && p) {
       await upsertPayslipDetail({
         person: p, pay_date: payDate, gross: Math.round(gross),
-        taxable: taxable != null ? Math.round(taxable) : null,
+        taxable: null,   // 課税支給額は累計値のため保存しない（扶養タブで 総支給−通勤手当 で算出）
         commute: commute != null ? Math.round(commute) : null,
         work_minutes: parseWorkMinutes(workTime),
       })
@@ -240,10 +243,10 @@
 
       <div class="day-head"><span>扶養トラッカー用（えみの集計・任意）</span></div>
       <div class="row2">
-        <label class="field"><span>課税支給額</span><input type="number" inputmode="numeric" bind:value={taxable} /></label>
         <label class="field"><span>通勤手当</span><input type="number" inputmode="numeric" bind:value={commute} /></label>
+        <label class="field"><span>総労働時間（例 86:21）</span><input type="text" inputmode="numeric" bind:value={workTime} placeholder="HH:MM" /></label>
       </div>
-      <label class="field"><span>総労働時間（例 86:21）</span><input type="text" inputmode="numeric" bind:value={workTime} placeholder="HH:MM" /></label>
+      <p class="hint">課税支給額は「総支給−通勤手当」で自動計算します（明細の課税支給額は年内累計のため使いません）。</p>
 
       <div class="day-head"><span>控除（プラス＝支出 / マイナス＝還付は収入）</span></div>
       {#each deductions as d, i (i)}
