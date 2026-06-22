@@ -3,220 +3,122 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>扶養トラッカー 見やすさ案 v2（4項目）</title>
+<title>扶養トラッカー 案A リファイン</title>
 <style>
   :root{
     --bg:#FBFAF7; --surface:#fff; --ink:#1C2430; --muted:#6B7280;
     --green:#1F6F58; --green-soft:#E3F0EA; --blue:#2A577E; --blue-soft:#EAF0F6;
-    --amber:#C98A1B; --amber-soft:#FBF0DA; --red:#C0492F; --red-soft:#F7E2DC;
-    --track:#ECEAE3; --line:#EBE8E0; --radius:18px;
+    --amber:#C98A1B; --red:#C0492F; --track:#ECEAE3; --line:#EBE8E0; --radius:18px;
   }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
-    font-variant-numeric:tabular-nums;padding:0 0 60px}
-  .wrap{max-width:430px;margin:0 auto;padding:0 14px}
-  header.top{padding:22px 14px 6px;max-width:430px;margin:0 auto}
-  header.top h1{font-size:19px;margin:0 0 6px}
+    font-variant-numeric:tabular-nums;padding:0 0 50px}
+  .wrap{max-width:430px;margin:0 auto;padding:0 16px}
+  header.top{padding:22px 16px 4px;max-width:430px;margin:0 auto}
+  header.top h1{font-size:18px;margin:0 0 6px}
   header.top p{font-size:13px;color:var(--muted);margin:0 0 4px;line-height:1.6}
   .pill-note{display:inline-block;background:var(--green-soft);color:var(--green);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;margin-top:6px}
-  .proto{margin:26px 0}
-  .proto>.tag{font-size:13px;font-weight:800;color:var(--green);margin:0 2px 8px;display:flex;gap:8px;align-items:baseline}
-  .proto>.tag .n{background:var(--green);color:#fff;border-radius:8px;padding:2px 10px;font-size:13px}
-  .proto>.tag .d{color:var(--muted);font-weight:600;font-size:12px}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-  .card+.card{margin-top:10px}
-  .green{color:var(--green)}.blue{color:var(--blue)}.muted{color:var(--muted)}
-  .center{text-align:center}
+  .label{font-size:13px;font-weight:800;color:var(--green);margin:24px 2px 8px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .cardlabel{font-size:13px;color:var(--muted);margin:0 0 12px}
+
+  /* 見出し行：信号＋メッセージ ／ 右に％ */
+  .head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .status{display:flex;align-items:center;gap:10px}
+  .dots{display:flex;gap:6px}
+  .dots i{width:13px;height:13px;border-radius:50%;background:var(--track)}
+  .dots i.on{background:var(--green);box-shadow:0 0 0 4px var(--green-soft)}
+  .msg{font-size:18px;font-weight:800}
+  .pct{font-size:12px;color:var(--muted);white-space:nowrap}
+
   hr{border:none;border-top:1px solid var(--line);margin:14px 0}
-  .chip{display:inline-block;background:var(--green-soft);color:var(--green);font-weight:700;font-size:12px;padding:4px 11px;border-radius:999px}
-  .thinbar{height:10px;border-radius:999px;background:var(--track);overflow:hidden}
-  .thinbar>i{display:block;height:100%;background:var(--green)}
-  .bar{height:20px;border-radius:999px;background:var(--track);overflow:hidden}
-  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#3c9a7c);border-radius:999px}
-  .kv{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:7px}
 
-  /* グループ（今年 / 今月）共通：時間とお金を横並び */
-  .grp+.grp{margin-top:16px}
-  .grp-h{font-size:14px;font-weight:800;margin:0 0 8px}
-  .grp-h small{font-weight:600;color:var(--muted);font-size:11px;margin-left:6px}
-  .grp-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .gv b{display:block;font-size:27px;font-weight:800;color:var(--green);line-height:1.1}
-  .gv b small{font-size:14px;font-weight:800;margin-left:2px}
-  .gv span{font-size:12px;color:var(--muted)}
-  .gv.money b{color:var(--blue)}
-
-  /* 案A タイル2×2 */
+  /* 2×2タイル */
   .grid4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .tile{background:var(--green-soft);border-radius:14px;padding:14px}
-  .tile.m{background:var(--blue-soft)}
-  .tile .lab{font-size:12px;color:var(--muted);font-weight:600}
-  .tile .num{font-size:26px;font-weight:800;color:var(--green);margin-top:4px;line-height:1.05}
-  .tile.m .num{color:var(--blue)}
-  .tile .num small{font-size:14px;font-weight:800;margin-left:2px}
+  .tile{border-radius:14px;padding:13px 14px}
+  .tile.time{background:var(--green-soft);color:var(--green)}
+  .tile.money{background:var(--blue-soft);color:var(--blue)}
+  .tt{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700}
+  .tt .lab{color:var(--muted);font-weight:600}
+  .ic{width:17px;height:17px;flex:none}
+  .num{font-size:27px;font-weight:800;margin-top:7px;line-height:1.05}
+  .num small{font-size:14px;font-weight:800;margin-left:2px}
 
-  /* 信号 */
-  .signal{display:flex;gap:9px;align-items:center;margin-bottom:14px}
-  .dot{width:16px;height:16px;border-radius:50%;background:var(--track)}
-  .dot.on{background:var(--green);box-shadow:0 0 0 5px var(--green-soft)}
-  .status{margin-left:8px;font-size:19px;font-weight:800}
+  .thinbar{height:8px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:14px}
+  .thinbar>i{display:block;height:100%;background:var(--green)}
 
-  /* ピル */
-  .pillstat{border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:11px;background:var(--green-soft)}
-  .pillstat.money{background:var(--blue-soft)}
-  .pillstat .ic{font-size:22px}
-  .pillstat .v{font-size:23px;font-weight:800;line-height:1.05;color:var(--green)}
-  .pillstat.money .v{color:var(--blue)}
-  .pillstat .l{font-size:11px;color:var(--muted)}
-  .lead{font-size:18px;font-weight:700;margin:0 0 2px}
-  .foot{font-size:12px;color:var(--muted);text-align:center;margin:30px 14px}
+  .foot{font-size:12px;color:var(--muted);text-align:center;margin:26px 16px}
+  .foot b{color:var(--ink)}
 </style>
 </head>
 <body>
 
 <header class="top">
-  <h1>見やすさ案 v2（4項目バージョン）</h1>
-  <p>見せたい4項目で作り直しました：<b>今年あと（働ける時間／稼げる金額）</b>と、それを<b>1ヶ月に直したとき（時間／金額）</b>。<br>
-  残っていた系統（案1・2・8・9・10）ベースで6案あります。気に入った番号を教えてください（組み合わせ希望もOK）。</p>
-  <span class="pill-note">確認後このページは削除します</span>
-  <p style="margin-top:10px">前提：上限103万円・今41%／<b>今年あと 512時間・¥604,452</b>／<b>1ヶ月あたり 73時間・¥86,350</b>（残り7ヶ月）</p>
+  <h1>案A リファイン（A＋E＋C＋Lucide）</h1>
+  <p>案Aベースに、メッセージと数字を<b>線で区切り</b>、横に<b>信号</b>、アイコンは<b>Lucide</b>（時計／お札）で統一しました。実データで表示しています。</p>
+  <span class="pill-note">これでOKなら本実装します</span>
 </header>
 
 <div class="wrap">
 
-  <!-- 案A：2×2タイル -->
-  <div class="proto">
-    <div class="tag"><span class="n">案A</span> 2×2タイル <span class="d">4項目をいちばん整理／色で 時間=緑・お金=青</span></div>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <span class="chip">まだ余裕あり</span><span class="muted" style="font-size:12px">103万円まで 41%</span>
+  <div class="label">えみ 扶養トラッカー（2026年）</div>
+  <div class="card">
+    <div class="cardlabel">上限 ¥1,030,000</div>
+
+    <!-- 見出し：信号 ＋「まだ働けます」／ 右に％ -->
+    <div class="head">
+      <div class="status">
+        <span class="dots"><i class="on"></i><i></i><i></i></span>
+        <span class="msg">まだ働けます</span>
       </div>
-      <div class="grid4">
-        <div class="tile"><div class="lab">今年 あと働ける</div><div class="num">512<small>時間</small></div></div>
-        <div class="tile m"><div class="lab">今年 あと稼げる</div><div class="num">¥604,452</div></div>
-        <div class="tile"><div class="lab">今月 あと働ける</div><div class="num">73<small>時間</small></div></div>
-        <div class="tile m"><div class="lab">今月 あと稼げる</div><div class="num">¥86,350</div></div>
-      </div>
-      <div class="thinbar" style="margin-top:14px"><i style="width:41%"></i></div>
+      <span class="pct">103万円まで 41%</span>
     </div>
+
+    <hr>
+
+    <!-- 4項目：今年(時間/お金) ／ 今月(時間/お金) -->
+    <div class="grid4">
+      <div class="tile time">
+        <div class="tt">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="lab">今年 あと働ける</span>
+        </div>
+        <div class="num">512<small>時間</small></div>
+      </div>
+      <div class="tile money">
+        <div class="tt">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          <span class="lab">今年 あと稼げる</span>
+        </div>
+        <div class="num">¥604,452</div>
+      </div>
+      <div class="tile time">
+        <div class="tt">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="lab">今月 あと働ける</span>
+        </div>
+        <div class="num">73<small>時間</small></div>
+      </div>
+      <div class="tile money">
+        <div class="tt">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+          <span class="lab">今月 あと稼げる</span>
+        </div>
+        <div class="num">¥86,350</div>
+      </div>
+    </div>
+
+    <div class="thinbar"><i style="width:41%"></i></div>
   </div>
 
-  <!-- 案B：今年カード＋今月カード（枠を分ける） -->
-  <div class="proto">
-    <div class="tag"><span class="n">案B</span> 今年カード＋今月カード <span class="d">「今年」と「今月」を別の枠に</span></div>
-    <div class="card">
-      <div class="grp">
-        <div class="grp-h">今年 あと</div>
-        <div class="grp-row">
-          <div class="gv"><b>512<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥604,452</b><span>稼げる</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="grp">
-        <div class="grp-h">今月のめやす <small>残り7ヶ月で割った1ヶ月分</small></div>
-        <div class="grp-row">
-          <div class="gv"><b>73<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥86,350</b><span>稼げる</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 案C：信号＋4項目 -->
-  <div class="proto">
-    <div class="tag"><span class="n">案C</span> 信号＋4項目 <span class="d">上に色で状態、下に4項目</span></div>
-    <div class="card">
-      <div class="signal">
-        <div class="dot on"></div><div class="dot"></div><div class="dot"></div>
-        <span class="status green">まだ余裕あり</span>
-      </div>
-      <div class="grp">
-        <div class="grp-h">今年 あと</div>
-        <div class="grp-row">
-          <div class="gv"><b>512<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥604,452</b><span>稼げる</span></div>
-        </div>
-      </div>
-      <div class="grp">
-        <div class="grp-h">今月のめやす</div>
-        <div class="grp-row">
-          <div class="gv"><b>73<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥86,350</b><span>稼げる</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 案D：大きなピル4つ -->
-  <div class="proto">
-    <div class="tag"><span class="n">案D</span> アイコン付きカード4つ <span class="d">⏰時間・💰お金を今年/今月で</span></div>
-    <div class="card">
-      <p class="grp-h" style="margin-bottom:8px">今年 あと</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="pillstat"><div class="ic">⏰</div><div><div class="v">512時間</div><div class="l">働ける</div></div></div>
-        <div class="pillstat money"><div class="ic">💰</div><div><div class="v">¥604,452</div><div class="l">稼げる</div></div></div>
-      </div>
-      <p class="grp-h" style="margin:14px 0 8px">今月のめやす</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="pillstat"><div class="ic">⏰</div><div><div class="v">73時間</div><div class="l">働ける</div></div></div>
-        <div class="pillstat money"><div class="ic">💰</div><div><div class="v">¥86,350</div><div class="l">稼げる</div></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 案E：ひとこと＋4項目 -->
-  <div class="proto">
-    <div class="tag"><span class="n">案E</span> ひとこと＋4項目 <span class="d">やさしい言葉を添えて</span></div>
-    <div class="card">
-      <p class="lead center">まだ働けます 🙆‍♀️ <span class="muted" style="font-size:13px;font-weight:600">（103万円まで41%）</span></p>
-      <hr>
-      <div class="grp">
-        <div class="grp-h">今年 あと</div>
-        <div class="grp-row">
-          <div class="gv"><b>512<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥604,452</b><span>稼げる</span></div>
-        </div>
-      </div>
-      <div class="grp">
-        <div class="grp-h">今月のめやす</div>
-        <div class="grp-row">
-          <div class="gv"><b>73<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥86,350</b><span>稼げる</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 案F：バー＋4項目 -->
-  <div class="proto">
-    <div class="tag"><span class="n">案F</span> バー＋4項目 <span class="d">上限までのバーを上に</span></div>
-    <div class="card">
-      <p class="lead">103万円まで あと <span class="green" style="font-weight:800">¥604,452</span></p>
-      <div class="bar" style="margin:12px 0 4px"><i style="width:41%"></i></div>
-      <div class="kv"><span>今 41%</span><span>上限 103万円</span></div>
-      <hr>
-      <div class="grp">
-        <div class="grp-h">今年 あと</div>
-        <div class="grp-row">
-          <div class="gv"><b>512<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥604,452</b><span>稼げる</span></div>
-        </div>
-      </div>
-      <div class="grp">
-        <div class="grp-h">今月のめやす</div>
-        <div class="grp-row">
-          <div class="gv"><b>73<small>時間</small></b><span>働ける</span></div>
-          <div class="gv money"><b>¥86,350</b><span>稼げる</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <p class="foot">
+    アイコンは <b>Lucide</b>（<b>clock</b>＝時間／<b>banknote</b>＝お金）で統一。信号は緑=余裕・黄=注意・赤=超えそう。<br>
+    「今月」＝今年の残りを残り月数（今は7ヶ月）で割った1ヶ月分。
+  </p>
 
 </div>
-
-<p class="foot">プロトタイプ v2（確認用）・実データで作成。気に入った案の番号（A〜F）を教えてください。<br>このページは確認後に削除します。</p>
 
 </body>
 </html>
