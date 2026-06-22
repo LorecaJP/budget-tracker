@@ -100,6 +100,22 @@ button { font-family: inherit; cursor: pointer; }
 .tx-amt { font-size: 15px; font-weight: 600; white-space: nowrap; }
 .tx-amt.muted { color: var(--muted); }
 
+/* ===== iOS調・共通（大タイトル/セクション見出し/ヒーロー/行アイコン） ===== */
+.lg-title { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 8px 2px 14px; }
+.lg-title .lg-sub { display: block; font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-top: 2px; }
+.sec-head { font-size: 13px; font-weight: 600; color: var(--muted); margin: 22px 4px 8px; }
+.home-hero { border-radius: 20px; padding: 20px; color: #fff; margin-bottom: 2px;
+  background: linear-gradient(135deg, #236B57, #2E9C7C 92%); box-shadow: 0 8px 22px rgba(31,111,88,.28); }
+.hh-label { font-size: 13px; opacity: .85; font-weight: 600; }
+.hh-net { font-size: 36px; font-weight: 800; letter-spacing: -.02em; margin: 2px 0 14px; }
+.hh-io { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hh-io > div { background: rgba(255,255,255,.16); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.hh-io .k { font-size: 12px; opacity: .85; }
+.hh-io .v { font-size: 17px; font-weight: 700; }
+.tx-ic { width: 30px; height: 30px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; color: #fff; }
+.tx-ic svg { width: 17px; height: 17px; }
+.tx-main { flex: 1; }
+
 /* ===== 入力ボタン / シート ===== */
 /* 浮遊するガラスの入力ボタン */
 .fab {
