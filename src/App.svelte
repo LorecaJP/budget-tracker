@@ -42,16 +42,34 @@
 
   function onSaved() { showAdd = false; key++ }
 
-  const TABS: { id: Tab; label: string; icon: string }[] = [
-    { id: 'home', label: 'ホーム', icon: '🏠' },
-    { id: 'tx', label: '取引', icon: '📋' },
-    { id: 'analysis', label: '分析', icon: '📊' },
-    { id: 'year', label: '年間', icon: '📈' },
-    { id: 'special', label: '特別費', icon: '📅' },
-    { id: 'fuyou', label: '扶養', icon: '🎯' },
-    { id: 'settings', label: '設定', icon: '⚙️' },
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'home', label: 'ホーム' },
+    { id: 'tx', label: '取引' },
+    { id: 'analysis', label: '分析' },
+    { id: 'year', label: '年間' },
+    { id: 'special', label: '特別費' },
+    { id: 'fuyou', label: '扶養' },
+    { id: 'settings', label: '設定' },
   ]
 </script>
+
+{#snippet tabIcon(id: Tab)}
+  {#if id === 'home'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
+  {:else if id === 'tx'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
+  {:else if id === 'analysis'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v4M12 9v9M17 5v13"/></svg>
+  {:else if id === 'year'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v4h-4"/></svg>
+  {:else if id === 'special'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+  {:else if id === 'fuyou'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>
+  {:else if id === 'settings'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+  {/if}
+{/snippet}
 
 {#if !$sessionReady}
   <div class="boot">読み込み中…</div>
@@ -81,13 +99,16 @@
     </main>
 
     {#if ready && (tab === 'home' || tab === 'tx')}
-      <button class="fab" onclick={() => showAdd = true}>＋ 入力する</button>
+      <button class="fab" onclick={() => showAdd = true}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>入力
+      </button>
     {/if}
 
     <nav class="tabbar">
       {#each TABS as t}
         <button class="tab {tab === t.id ? 'active' : ''}" onclick={() => tab = t.id}>
-          <span class="tab-icon">{t.icon}</span><span class="tab-label">{t.label}</span>
+          {@render tabIcon(t.id)}
+          <span class="tab-label">{t.label}</span>
         </button>
       {/each}
     </nav>
