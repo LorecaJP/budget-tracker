@@ -8,7 +8,7 @@
   import Home from './components/Home.svelte'
   import Transactions from './components/Transactions.svelte'
   import Analysis from './components/Analysis.svelte'
-  import YearSummary from './components/YearSummary.svelte'
+  import Ledger from './components/Ledger.svelte'
   import SpecialExpenses from './components/SpecialExpenses.svelte'
   import FuyouTracker from './components/FuyouTracker.svelte'
   import Settings from './components/Settings.svelte'
@@ -46,7 +46,7 @@
     { id: 'home', label: 'ホーム' },
     { id: 'tx', label: '取引' },
     { id: 'analysis', label: '分析' },
-    { id: 'year', label: '年間' },
+    { id: 'year', label: '収支' },
     { id: 'special', label: '特別費' },
     { id: 'fuyou', label: '扶養' },
     { id: 'settings', label: '設定' },
@@ -90,7 +90,7 @@
           {#if tab === 'home'}<Home />
           {:else if tab === 'tx'}<Transactions />
           {:else if tab === 'analysis'}<Analysis />
-          {:else if tab === 'year'}<YearSummary />
+          {:else if tab === 'year'}<Ledger />
           {:else if tab === 'special'}<SpecialExpenses />
           {:else if tab === 'fuyou'}<FuyouTracker />
           {:else if tab === 'settings'}<Settings />{/if}
