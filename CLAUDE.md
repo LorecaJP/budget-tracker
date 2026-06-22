@@ -52,7 +52,7 @@
 └─ src/
    ├─ main.ts
    ├─ App.svelte           # タブ構成（7タブ）・認証ゲート・起動時に設定読込→シード→描画
-   ├─ app.css              # デザイントークン＋全コンポーネントのスタイル
+   ├─ app.css              # デザイントークン＋全コンポーネントのスタイル（iOS調＝グループドカード＋Liquid Glass風）
    ├─ vite-env.d.ts
    ├─ lib/
    │  ├─ supabase.ts       # Supabaseクライアント（鍵はフォールバックで埋め込み済み。§8）
@@ -192,6 +192,7 @@
 - **`.env` はリポジトリに含めない**（.gitignore 済み）。Supabase の URL と publishable key は `src/lib/supabase.ts` にフォールバックでハードコード済み。publishable key は公開前提で、データは RLS で保護。
 - **PWA**: Service Worker は `vite-plugin-pwa`（autoUpdate）が生成。**アプリシェル＋取込チャンク（pdf.js本体 `extract-*.js`・ワーカー含む）をまとめて事前キャッシュ**する（`vite.config.ts` の workbox）。新バージョンは再読み込みで反映。
 - **PWAの落とし穴（実害あり・対処済み）「Importing a module script failed」**: 取込チャンク(`extract-*.js`)を事前キャッシュから外す（旧 `globIgnores: ['**/extract-*.js']`）と、再デプロイでチャンクのハッシュが変わった際に、**古いアプリ殻（SWキャッシュ）が、サーバーから削除済みの旧 `extract-*.js` を動的import しようとして失敗**する（バージョン不整合）。→ **取込チャンクも `globPatterns` で事前キャッシュに含める**ことで、SWのバージョンと常に一致させて防ぐ（`navigateFallbackDenylist: [/\/assets\//]` で資産にindex.htmlを返さないのも併用、`maximumFileSizeToCacheInBytes` をワーカーサイズに合わせて拡大）。古い端末でキャッシュが残ってこのエラーが出る場合は、**プライベートタブで開く / Safari「設定→Safari→詳細→Webサイトデータ」で `github.io` を削除**して更新する。
+- **デザインは iOS調（案A）＋ Liquid Glass 風**（オーナー承認済み・段階導入中）。背景は iOS グレー（`--bg`）、カードは枠線なし＋淡い影の「グループド」。**タブバーと入力(FAB)ボタンは浮遊するガラス**（`backdrop-filter: blur+saturate` ＋ `--glass-bg/--glass-edge/--glass-hi/--glass-cap`、`.tabbar`/`.tab.active::before`/`.fab`）。タブのアイコンは絵文字をやめ **App.svelte の `tabIcon` スニペット（Lucide風インラインSVG）**。Webでは本物の屈折は出ない（近似）。**第1段＝シェル（背景/カード/タブ/FAB）まで適用済み、各画面の中身は順次グループド化していく予定**。
 - **ビルド時の a11y 警告**（モーダル背景やli等）は出るがビルド成功・動作に影響なし。
 - **定期の重複計上防止はヒューリスティック**（同一カテゴリ・金額・日付・source='recurring'）。厳密にするなら transactions に recurring_rule_id 列を足す（スキーマ変更）。
 - **GitHub Pages の base path** は `/budget-tracker/`（vite.config.ts の `repo`）。リポジトリ名を変えたらここも変更。
