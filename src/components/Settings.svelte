@@ -7,7 +7,8 @@
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
     listBudgets, setBudget, listTransactions, saveSettings,
-    getFuyouConfig, saveFuyouConfig, setCategoryGoal, setAccountAlloc, type Recurring, type Budget,
+    getFuyouConfig, saveFuyouConfig, setCategoryGoal, setAccountAlloc, setBudgetAllMonths,
+    type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -95,13 +96,17 @@
   const pk = periodKey(bm.year, bm.month)
   let budgets = $state<Record<string, number>>({})
   let budgetLoaded = $state(false)
+  let applyAllMonths = $state(true)   // 既定：入れた額をその年の12ヶ月すべてに適用（固定費向け）
   async function loadBudgets() {
     const list = await listBudgets(pk)
     budgets = Object.fromEntries(list.map(b => [b.category_id, b.amount]))
     budgetLoaded = true
   }
   async function saveBudget(catId: string, val: number) {
-    await setBudget(catId, pk, Math.round(val || 0), $session!.user.id)
+    const amount = Math.round(val || 0)
+    if (applyAllMonths) await setBudgetAllMonths(catId, bm.year, amount, $session!.user.id)
+    else await setBudget(catId, pk, amount, $session!.user.id)
+    budgets[catId] = amount
   }
   $effect(() => { if (tab === 'budget' && !budgetLoaded) loadBudgets() })
 
@@ -216,7 +221,11 @@
     <button class="add-inline" onclick={newAcc}>＋ 口座を追加</button>
 
   {:else if tab === 'budget'}
-    <p class="hint">{bm.year}年{bm.month}月の予算（カテゴリごとに金額を入れて保存）</p>
+    <label class="check"><input type="checkbox" bind:checked={applyAllMonths} /> {bm.year}年の12ヶ月すべてに同額を設定（固定費向け）</label>
+    <p class="hint">
+      {#if applyAllMonths}入れた額を {bm.year}年の1〜12月すべてに適用します（後から月単位で上書き可）。{:else}{bm.year}年{bm.month}月だけに設定します。{/if}
+      この予定額は「収支」タブ（月次・年間）に表示され、実績が入ると置き換わります。
+    </p>
     {#if budgetLoaded}
       {#each categories.filter(c => !c.archived && (c.division === 'fixed' || c.division === 'variable')) as c (c.id)}
         <div class="budget-row">

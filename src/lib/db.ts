@@ -101,6 +101,34 @@ export async function setBudget(categoryId: string, periodMonth: string, amount:
   if (data?.id) return supabase.from('budgets').update({ amount }).eq('id', data.id)
   return supabase.from('budgets').insert({ category_id: categoryId, period_month: periodMonth, amount, user_id: userId })
 }
+// 指定した年の12予算月（'Y-01'〜'Y-12'）の予算をまとめて取得（年間・月次ビューの「予定額」用）
+export async function listBudgetsForYear(year: number): Promise<Budget[]> {
+  const { data } = await supabase.from('budgets').select('*')
+    .gte('period_month', `${year}-01`).lte('period_month', `${year}-12`)
+  return (data ?? []) as Budget[]
+}
+// あるカテゴリの予算を、その年の12予算月すべてに同額で設定（固定費の一括入力用）。
+// amount<=0 のときはその年の該当カテゴリの予算行を削除（＝未設定に戻す）。
+export async function setBudgetAllMonths(categoryId: string, year: number, amount: number, userId: string) {
+  const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+  if (amount <= 0) {
+    return supabase.from('budgets').delete().eq('category_id', categoryId)
+      .gte('period_month', `${year}-01`).lte('period_month', `${year}-12`)
+  }
+  const { data } = await supabase.from('budgets').select('period_month')
+    .eq('category_id', categoryId).gte('period_month', `${year}-01`).lte('period_month', `${year}-12`)
+  const have = new Set((data ?? []).map(b => (b as { period_month: string }).period_month))
+  const toInsert = months.filter(m => !have.has(m))
+  const toUpdate = months.filter(m => have.has(m))
+  if (toUpdate.length) {
+    await supabase.from('budgets').update({ amount }).eq('category_id', categoryId).in('period_month', toUpdate)
+  }
+  if (toInsert.length) {
+    await supabase.from('budgets').insert(
+      toInsert.map(m => ({ category_id: categoryId, period_month: m, amount, user_id: userId }))
+    )
+  }
+}
 
 // ---------- 定期 ----------
 export interface Recurring {

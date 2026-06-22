@@ -275,3 +275,25 @@ button { font-family: inherit; cursor: pointer; }
 .year-table .sum-row th, .year-table .sum-row td { border-top: 1px solid var(--border); }
 .year-table .net-row th, .year-table .net-row td { border-top: 1px solid var(--border); font-weight: 600; }
 .year-table .z { color: var(--muted); opacity: .4; }
+/* 年間：区分（小計・開閉）行とカテゴリ行・予定セル */
+.year-table .div-row th, .year-table .div-row td { background: var(--surface-2); font-weight: 600; cursor: pointer; border-top: 1px solid var(--border); }
+.year-table .div-row th { position: sticky; left: 0; }
+.year-table .cat-row th { padding-left: 22px; font-weight: 400; }
+.year-table td.est { color: var(--muted); font-style: italic; opacity: .75; }
+.est-legend { color: var(--muted); font-style: italic; }
+
+/* 収支タブのトグル */
+.ledger-seg { margin-top: 4px; }
+
+/* 月次内訳（費目別の実績／予定） */
+.io-3 { grid-template-columns: 1fr 1fr 1fr; }
+.io-3 .io-val { font-size: 15px; }
+.sh-sum { float: right; font-weight: 500; color: var(--muted); font-size: 12px; }
+.mb-row { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.mb-row:last-child { border-bottom: none; }
+.mb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; }
+.mb-row .bp-track { margin-top: 6px; }
+.mb-name { color: var(--text); }
+.mb-num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.mb-num b { color: var(--text); font-weight: 600; }
+.mb-num b.neg { color: var(--neg); }
