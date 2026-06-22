@@ -189,18 +189,25 @@ button { font-family: inherit; cursor: pointer; }
 .fy-gl.mt { margin-top:14px; }
 .fy-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 /* 全タイル同じ固定サイズ：幅=1fr（左右同じ）・高さ62px固定（上下同じ）・折り返さない */
-.fy-tile { border-radius:14px; padding:0 14px; height:62px; display:flex; align-items:center; gap:8px; overflow:hidden; }
+.fy-tile { border-radius:14px; padding:0 10px; height:62px; display:flex; align-items:center; gap:6px; overflow:hidden; }
 .fy-tile.time { background:var(--fy-green-bg); color:var(--pos); }
 .fy-tile.money { background:var(--fy-blue-bg); color:var(--fy-blue); }
 .fy-tile.off { background:var(--fy-off-bg); color:var(--muted); }
-.fy-ic { width:19px; height:19px; flex:none; }
+.fy-ic { width:18px; height:18px; flex:none; }
 .fy-num { font-size:22px; font-weight:800; line-height:1.05; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fy-num small { font-size:13px; font-weight:800; margin-left:2px; }
+.fy-num small { font-size:13px; font-weight:800; margin-left:1px; }
 .fy-over { margin-top:12px; background:var(--fy-red-bg); color:var(--neg); font-weight:700; font-size:13px; padding:9px 12px; border-radius:12px; text-align:center; }
 .fy-capnote { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:7px; }
 .bp-fill.amber { background:var(--fy-amber); }
 .bp-fill.red { background:var(--neg); }
 .bp-fill.green { background:var(--pos); }
+/* 明細リスト（見やすく整理：短いラベル＋区切り線＋値を強調） */
+.fy-kv { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:10px 0; font-size:13px; }
+.fy-kv + .fy-kv { border-top:1px solid var(--border); }
+.fy-kv .k { color:var(--muted); }
+.fy-kv .v { color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+.fy-kv .v.neg { color:var(--neg); }
+.fy-note { font-size:11px; color:var(--muted); margin:10px 0 0; }
 
 /* 設定 */
 .seg-wide { width: 100%; margin-bottom: 14px; }

@@ -128,16 +128,20 @@
     </section>
 
     <section class="card">
-      <div class="kv"><span>課税支給額（総支給−通勤手当）</span><span class="num">{yen(taxableYtd)} / {yen(cap)}</span></div>
-      <div class="kv" style="margin-top:6px"><span>総支給（通勤手当込み・参考）</span><span class="num">{yen(grossYtd)}</span></div>
+      <div class="card-label">明細</div>
+      <div class="fy-kv"><span class="k">課税支給額</span><span class="v">{yen(taxableYtd)} / {yen(cap)}</span></div>
+      <div class="fy-kv"><span class="k">総支給（参考）</span><span class="v">{yen(grossYtd)}</span></div>
       {#if hasCommute}
-        <div class="kv" style="margin-top:6px"><span>通勤手当（判明分の合計）</span><span class="num">{yen(commuteYtd)}</span></div>
+        <div class="fy-kv"><span class="k">通勤手当</span><span class="v">{yen(commuteYtd)}</span></div>
       {/if}
       {#if minutesYtd > 0}
-        <div class="kv" style="margin-top:6px"><span>総労働時間（判明分）</span><span class="num {weeklyAvgHours >= 20 ? 'neg' : ''}">{Math.round(totalHours).toLocaleString('ja-JP')}時間 ／ 週平均 {weeklyAvgHours.toFixed(1)}h</span></div>
+        <div class="fy-kv"><span class="k">総労働時間</span><span class="v {weeklyAvgHours >= 20 ? 'neg' : ''}">{Math.round(totalHours).toLocaleString('ja-JP')}時間（週平均{weeklyAvgHours.toFixed(1)}h）</span></div>
       {/if}
       {#if isThisYear && projected > 0}
-        <div class="reserve"><span>このペースの年間着地見込み（課税）</span><span class="num {projected > cap ? 'neg' : ''}">{yen(projected)}</span></div>
+        <div class="fy-kv"><span class="k">年間の見込み</span><span class="v {projected > cap ? 'neg' : ''}">{yen(projected)}</span></div>
+      {/if}
+      {#if hasCommute || minutesYtd > 0}
+        <p class="fy-note">通勤手当・総労働時間は取込済みの月の合計です。</p>
       {/if}
     </section>
 
