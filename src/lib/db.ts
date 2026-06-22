@@ -68,6 +68,21 @@ export async function upsertCategory(c: Partial<Category> & { id?: string; user_
 export async function archiveCategory(id: string, archived: boolean) {
   return supabase.from('categories').update({ archived }).eq('id', id)
 }
+// 貯金の目標額を設定（categories.goal_amount。列未追加だとエラーを返す）
+export async function setCategoryGoal(id: string, goal: number | null) {
+  return supabase.from('categories').update({ goal_amount: goal }).eq('id', id)
+}
+// 指定カテゴリ群への支出（＝貯蓄の積立）の累計を category_id ごとに合計（全期間）
+export async function sumSavingByCategory(categoryIds: string[]): Promise<Record<string, number>> {
+  if (categoryIds.length === 0) return {}
+  const { data } = await supabase.from('transactions').select('category_id, amount')
+    .eq('type', 'expense').in('category_id', categoryIds)
+  const m: Record<string, number> = {}
+  for (const t of (data ?? []) as { category_id: string | null; amount: number }[]) {
+    if (t.category_id) m[t.category_id] = (m[t.category_id] ?? 0) + t.amount
+  }
+  return m
+}
 
 // ---------- 予算 ----------
 export interface Budget { id: string; category_id: string; period_month: string; amount: number }

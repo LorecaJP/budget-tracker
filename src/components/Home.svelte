@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen } from '../lib/month'
-  import { listTransactions, listCategories, listBudgets, listAccounts } from '../lib/db'
+  import { listTransactions, listCategories, listBudgets, listAccounts, sumSavingByCategory } from '../lib/db'
   import type { Transaction, Category, Account } from '../lib/types'
   import TxIcon from './TxIcon.svelte'
 
@@ -11,6 +11,7 @@
   let cats = $state<Record<string, Category>>({})
   let accs = $state<Record<string, Account>>({})
   let budgets = $state<{ category_id: string; amount: number }[]>([])
+  let savingTotals = $state<Record<string, number>>({})
 
   const bm = budgetMonthOf(new Date())
   const range = budgetMonthRange(bm.year, bm.month)
@@ -34,6 +35,14 @@
     })).sort((a, b) => (b.spent / b.budget) - (a.spent / a.budget)).slice(0, 4)
   )
 
+  // 貯金の目標（目標額が設定された貯蓄カテゴリ）と累計の進捗
+  const savingGoals = $derived(
+    Object.values(cats)
+      .filter(c => !c.archived && c.division === 'saving' && (c.goal_amount ?? 0) > 0)
+      .map(c => ({ name: c.name, goal: c.goal_amount as number, saved: savingTotals[c.id] ?? 0 }))
+      .sort((a, b) => b.goal - a.goal)
+  )
+
   async function load() {
     loading = true; error = null
     const cl = await listCategories()
@@ -42,6 +51,8 @@
     accs = Object.fromEntries(al.map(a => [a.id, a]))
     txs = await listTransactions(ymd(range.start), ymd(range.end))
     budgets = await listBudgets(periodKey(bm.year, bm.month))
+    const savingIds = cl.filter(c => c.division === 'saving' && (c.goal_amount ?? 0) > 0).map(c => c.id)
+    savingTotals = await sumSavingByCategory(savingIds)
     loading = false
   }
   onMount(load)
@@ -70,6 +81,18 @@
         <div class="bp">
           <div class="bp-head"><span>{b.name}</span><span class="num">{yen(b.spent)} / {yen(b.budget)}</span></div>
           <div class="bp-track"><div class="bp-fill {b.spent > b.budget ? 'over' : ''}" style="width:{Math.min(100, (b.spent / b.budget) * 100)}%"></div></div>
+        </div>
+      {/each}
+    </section>
+  {/if}
+
+  {#if savingGoals.length}
+    <div class="sec-head">貯金の目標</div>
+    <section class="card">
+      {#each savingGoals as g}
+        <div class="bp">
+          <div class="bp-head"><span>{g.name}</span><span class="num">{yen(g.saved)} / {yen(g.goal)}（{g.goal > 0 ? Math.round((g.saved / g.goal) * 100) : 0}%）</span></div>
+          <div class="bp-track"><div class="bp-fill" style="width:{Math.min(100, g.goal > 0 ? (g.saved / g.goal) * 100 : 0)}%"></div></div>
         </div>
       {/each}
     </section>

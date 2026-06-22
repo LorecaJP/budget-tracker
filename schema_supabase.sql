@@ -36,8 +36,11 @@ create table categories (
   icon        text,
   sort_order  integer not null default 0,
   archived    boolean not null default false,
+  goal_amount integer,                              -- 貯金の目標額（貯蓄カテゴリ用・後から追加した列）
   created_at  timestamptz not null default now()
 );
+-- 既存DBには以下を実行（列追加）。未追加でもアプリは動く（目標未設定として扱う）：
+--   alter table categories add column if not exists goal_amount integer;
 
 -- ---------- 取引 ----------
 -- 貯蓄（防衛費・各自貯金・特別費積立）は division='saving' のカテゴリへの取引として記録
