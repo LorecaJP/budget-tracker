@@ -7,7 +7,7 @@
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
     listBudgets, setBudget, listTransactions, saveSettings,
-    getFuyouConfig, saveFuyouConfig, type Recurring, type Budget,
+    getFuyouConfig, saveFuyouConfig, setCategoryGoal, type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -48,6 +48,14 @@
     emiMsg = '保存中…'
     const { error } = await saveFuyouConfig({ hourly_wage: +emiWage, year_cap: +emiCap }, $session!.user.id)
     emiMsg = error ? '保存に失敗：' + error.message + '（settings に列追加が必要かもしれません）' : '保存しました'
+  }
+
+  // --- 貯金の目標 ---
+  let goalMsg = $state('')
+  async function saveGoal(id: string, val: number) {
+    const { error } = await setCategoryGoal(id, Math.round(val) || null)
+    goalMsg = error ? '保存に失敗（categories に goal_amount 列が必要）：' + error.message + ' / ' : '保存しました / '
+    reload()
   }
 
   // --- カテゴリ ---
@@ -136,6 +144,18 @@
     </div>
     <button class="add-inline" onclick={saveEmi}>保存</button>
     <p class="hint">「扶養」タブで使う時給と年間上限（103万＝1030000 / 106万＝1060000 / 130万＝1300000）。{emiMsg}</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label">貯金の目標</div>
+    {#each categories.filter(c => !c.archived && c.division === 'saving') as c (c.id)}
+      <div class="budget-row">
+        <span class="tx-name">{c.name}</span>
+        <input class="budget-input" type="number" inputmode="numeric" value={c.goal_amount ?? ''} placeholder="0"
+          onchange={(e) => saveGoal(c.id, +(e.currentTarget as HTMLInputElement).value)} />
+      </div>
+    {/each}
+    <p class="hint">{goalMsg}各貯蓄カテゴリの目標額。ホームの「貯金の目標」に達成率が出ます。</p>
   </div>
 
   <div class="seg seg-wide">

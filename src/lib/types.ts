@@ -23,6 +23,7 @@ export interface Category {
   icon: string | null
   sort_order: number
   archived: boolean
+  goal_amount?: number | null   // 貯金の目標額（貯蓄カテゴリ用・任意。列未追加なら undefined）
 }
 
 export interface Transaction {
