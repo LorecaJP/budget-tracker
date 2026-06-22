@@ -69,7 +69,7 @@
    │     └─ ocr.ts         #   Edge Function payslip-ocr 呼び出し
    └─ components/
       ├─ Auth.svelte
-      ├─ TxIcon.svelte          # 取引の種別/会計区分→色つき丸アイコン（Home/Transactions で共用）
+      ├─ TxIcon.svelte          # 取引の種別/会計区分→色、カテゴリ名→アイコンの色つき丸（食費=食器/電気=雷/水道=雫/家賃=家/携帯=スマホ/保険=盾/ジム=運動/交通=バス/おこづかい=財布/交際=人/日用品=袋/貯金=ブタ/税=レシート 等。Home/Transactions で共用）
       ├─ Home.svelte            # 大タイトル＋緑グラデの収支ヒーロー＋グループドリスト
       ├─ Transactions.svelte    # 「給与PDFを取り込む」ボタンあり。行頭に TxIcon
       ├─ AddTransaction.svelte  # 追加・編集・削除の共通モーダル（支出/収入/振替）
