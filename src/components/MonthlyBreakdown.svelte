@@ -18,7 +18,7 @@
   let loading = $state(true)
 
   interface Row { name: string; actual: number; plan: number }
-  interface Block { div: Division; label: string; rows: Row[]; actSum: number; planSum: number }
+  interface Block { div: Division; label: string; rows: Row[]; actSum: number; planSum: number; foreSum: number }
 
   const catsByDiv = $derived.by(() => {
     const m: Record<string, Category[]> = {}
@@ -46,17 +46,17 @@
     const blocks: Block[] = []
     for (const div of DIV_ORDER) {
       const rows: Row[] = []
-      let actSum = 0, planSum = 0
+      let actSum = 0, planSum = 0, foreSum = 0
       for (const c of (catsByDiv[div] ?? [])) {
         const actual = actualByCat.m[c.id] ?? 0
         const plan = budgets[c.id] ?? 0
         if (actual === 0 && plan === 0) continue
         rows.push({ name: c.name, actual, plan })
-        actSum += actual; planSum += plan
+        actSum += actual; planSum += plan; foreSum += actual > 0 ? actual : plan
       }
       const u = actualByCat.uncat[div] ?? 0
-      if (u !== 0) { rows.push({ name: '(未分類)', actual: u, plan: 0 }); actSum += u }
-      if (rows.length) blocks.push({ div, label: DIVISION_LABELS[div], rows, actSum, planSum })
+      if (u !== 0) { rows.push({ name: '(未分類)', actual: u, plan: 0 }); actSum += u; foreSum += u }
+      if (rows.length) blocks.push({ div, label: DIVISION_LABELS[div], rows, actSum, planSum, foreSum })
     }
     return blocks
   })
@@ -64,9 +64,11 @@
   const blockOf = (d: Division) => model.find(b => b.div === d)
   const incomeAct = $derived(blockOf('income')?.actSum ?? 0)
   const expenseAct = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.actSum ?? 0), 0))
-  const expensePlan = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.planSum ?? 0), 0))
   const netAct = $derived(incomeAct - expenseAct)
-  const planNet = $derived(incomeAct - expensePlan)   // 予定どおりなら残りはいくら（実績との差＝イレギュラー分）
+  // 見込み＝実績があれば実績・無ければ予定（先の月は全部予定＝試算になる）
+  const incomeFore = $derived(blockOf('income')?.foreSum ?? 0)
+  const expenseFore = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.foreSum ?? 0), 0))
+  const foreNet = $derived(incomeFore - expenseFore)
 
   async function load() {
     loading = true
@@ -99,13 +101,12 @@
   <p class="state">集計中…</p>
 {:else}
   <section class="summary">
-    <div class="net-label">今月の残り</div>
-    <div class="net {netAct >= 0 ? 'pos' : 'neg'}">{netAct >= 0 ? '+' : '−'}{yen(Math.abs(netAct))}</div>
-    <div class="net-sub">予定どおりなら {planNet >= 0 ? '+' : '−'}{yen(Math.abs(planNet))}</div>
-    <div class="io io-3">
-      <div class="io-cell"><span class="io-label">収入</span><span class="io-val pos">{yen(incomeAct)}</span></div>
-      <div class="io-cell"><span class="io-label">支出</span><span class="io-val neg">{yen(expenseAct)}</span></div>
-      <div class="io-cell"><span class="io-label">予定支出</span><span class="io-val">{yen(expensePlan)}</span></div>
+    <div class="net-label">見込みの残り</div>
+    <div class="net {foreNet >= 0 ? 'pos' : 'neg'}">{foreNet >= 0 ? '+' : '−'}{yen(Math.abs(foreNet))}</div>
+    <div class="net-sub">確定 {netAct >= 0 ? '+' : '−'}{yen(Math.abs(netAct))}（実績）</div>
+    <div class="io">
+      <div class="io-cell"><span class="io-label">収入（見込み）</span><span class="io-val pos">{yen(incomeFore)}</span></div>
+      <div class="io-cell"><span class="io-label">支出（見込み）</span><span class="io-val neg">{yen(expenseFore)}</span></div>
     </div>
   </section>
 
