@@ -295,6 +295,9 @@ button { font-family: inherit; cursor: pointer; }
 .mb-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; }
 .mb-row .bp-track { margin-top: 6px; }
 .mb-name { color: var(--text); }
+.mb-row.tappable { cursor: pointer; }
+.mb-row.tappable:active { opacity: .55; }
+.mb-edit { color: var(--muted); margin-left: 5px; font-size: 13px; }
 .mb-num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .mb-num b { color: var(--text); font-weight: 600; }
 .mb-num b.neg { color: var(--neg); }
