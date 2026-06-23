@@ -55,6 +55,17 @@ export interface ScheduledPayment {
   memo: string
 }
 
+// 楽天カード明細（家計簿本体とは別管理の分析用テーブル）
+export interface RakutenTx {
+  id: string
+  use_date: string          // 'YYYY-MM-DD'
+  merchant: string
+  amount: number
+  person: string            // '本人' / '家族'
+  category: string
+  statement_month: string   // 'YYYY-MM'（請求月）
+}
+
 export const DIVISION_LABELS: Record<Division, string> = {
   income: '収入',
   tax: '税金・社保',

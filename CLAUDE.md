@@ -62,12 +62,14 @@
    │  ├─ session.ts        # 認証セッションの store
    │  ├─ seed.ts           # 初回サインイン時の初期データ投入（口座・カテゴリ）
    │  ├─ db.ts             # 全テーブルの取得・CRUDヘルパー（ここに集約）。設定の get/save も
-   │  └─ payslip/          # 給与・賞与PDF取込（§6）
-   │     ├─ types.ts       #   ParsedPayslip 型（kind: salary/bonus 等）
-   │     ├─ extract.ts     #   pdf.js でテキスト抽出 / ページ画像化（Safari対応の注意は §8）
-   │     ├─ parse.ts       #   テキストPDF（えみ様式）パーサ
-   │     ├─ parseAzure.ts  #   Azure analyzeResult のパーサ（ゆうき給料・賞与）
-   │     └─ ocr.ts         #   Edge Function payslip-ocr 呼び出し
+   │  ├─ payslip/          # 給与・賞与PDF取込（§6）
+   │  │  ├─ types.ts       #   ParsedPayslip 型（kind: salary/bonus 等）
+   │  │  ├─ extract.ts     #   pdf.js でテキスト抽出 / 全ページ行復元(extractPdfRows) / 画像化（Safari対応は §8）
+   │  │  ├─ parse.ts       #   テキストPDF（えみ様式）パーサ
+   │  │  ├─ parseAzure.ts  #   Azure analyzeResult のパーサ（ゆうき給料・賞与）
+   │  │  └─ ocr.ts         #   Edge Function payslip-ocr 呼び出し
+   │  └─ rakuten/
+   │     └─ parse.ts       #   楽天カード請求明細PDFのパーサ＋店名→カード利用カテゴリ自動判定（§6末）
    └─ components/
       ├─ Auth.svelte
       ├─ TxIcon.svelte          # 取引の種別/会計区分→色、カテゴリ名→アイコンの色つき丸（食費=食器/電気=雷/水道=雫/家賃=家/携帯=スマホ/保険=盾/ジム=運動/交通=バス/おこづかい=財布/交際=人/日用品=袋/貯金=ブタ/税=レシート 等。Home/Transactions で共用）
@@ -82,6 +84,8 @@
       ├─ UpcomingPayments.svelte# 「支払い」タブ。引落の事前把握（確定額＋引落日＋引落口座）→口座ごとに用意する額
       ├─ FuyouTracker.svelte    # 扶養トラッカー（えみ）。暦年でえみ給料を集計し上限までの残り金額/時間。タブ「扶養」
       ├─ PayslipImport.svelte   # 給与・賞与PDF取込のモーダル（レビュー画面）
+      ├─ RakutenCard.svelte     # 「楽天」タブ。請求月チップ＋カテゴリ別内訳（店ドリル/分類変更）＋年間サマリ
+      ├─ RakutenImport.svelte   # 楽天カード請求明細PDF取込モーダル（カテゴリ別サマリ→請求月単位で登録）
       └─ Settings.svelte        # カテゴリ/口座/予算/定期 + 月の開始日 + 扶養トラッカー設定（時給/上限）+ 貯金の目標 + 口座への配分（予算は『12ヶ月へ一括』可）
 ```
 
@@ -99,6 +103,7 @@
 - **special_expenses**（特別費）: name, year, planned_month(1-12), budget_amount, actual_amount(null=予定), is_reserved(積立対象か), transaction_id
 - **settings**（設定・1ユーザー1行）: month_start_day(既定25), currency('JPY'), emi_hourly_wage(既定1180), emi_year_cap(既定1030000=扶養トラッカーの年間上限。103万円＝夫の会社の扶養手当の条件)。**アプリで使用中**（§4）。emi_* は後から追加した列（既存DBは `alter table settings add column if not exists ...`。未追加でも既定値で動作）。
 - **payslip_details**（給与明細の追加項目・扶養トラッカー用）: person, pay_date, gross, taxable(課税支給額), commute(通勤手当), work_minutes(総労働時間・分), transaction_id。給与取込時に保存（`unique(user_id, person, pay_date)`＝再取込で更新）。**後から追加した表**。未作成でもアプリは動く（扶養タブは総支給のみ表示・取込時の保存は黙ってスキップ＝`listPayslipDetails`/`upsertPayslipDetail` がフォールバック）。
+- **rakuten_transactions**（楽天カード明細・**家計簿本体とは別管理**の分析用）: use_date, merchant(利用店名), amount(利用金額), person(本人/家族), category(カード利用カテゴリ・自動判定&編集可), statement_month('YYYY-MM'＝請求月)。「楽天」タブで使用。**後から追加した表**。未作成でも空表示で動く（`listRakutenTx`）。請求月単位で置き換え（`replaceRakutenStatement`＝再取込で重複しない・手直し済みの店カテゴリは引き継ぐ）。固定費の二重計上を避けるため本体 transactions には入れない。
 - **scheduled_payments**（支払い予定・引落の事前把握）: name, amount(確定額/予定額), due_date(単発の引落日・null可), due_day(1-28＝毎月くりかえしの引落日), account_id(引落口座), category_id, status(planned/confirmed/paid), memo。「支払い」タブで使用。**後から追加した表**。未作成でも動く（取得は空配列フォールバック＝`listScheduledPayments`。追加時のみ要作成）。`due_day` があれば毎月くりかえし（`businessday.ts` の `nextMonthlyDue` で次回引落日を休日補正して表示）、無ければ `due_date` の単発。既存表には `add column if not exists due_day` ＋ `due_date drop not null`。
 
 ### 会計区分（division）
@@ -126,7 +131,7 @@
 
 - **認証**（Auth.svelte）: メール＋パスワード。RLSで本人のデータのみ。
 - **初回シード**（seed.ts）: 初サインイン時、カテゴリが空なら口座（現金/銀行/クレカ）と Excel由来のカテゴリ一式（ゆうき給料/えみ給料/ボーナス/各税・保険/各固定費/各変動費 等）を自動投入。
-- **タブナビ**（App.svelte）: ホーム / 取引 / 分析 / **年間** / **支払い** / 特別費 / **扶養** / 設定 の **8タブ**（「年間」タブの id は内部的に 'year'、「支払い」は 'pay'）。起動時に設定読込→シード→描画をゲート。**タブを減らす方向で整理中**（月次内訳はホームへ集約済み。次は特別費/分析の統合候補）。
+- **タブナビ**（App.svelte）: ホーム / 取引 / 分析 / **年間** / **支払い** / 特別費 / **扶養** / **楽天** / 設定 の **9タブ**（「年間」タブの id は 'year'、「支払い」は 'pay'、「楽天」は 'rakuten'）。起動時に設定読込→シード→描画をゲート。**タブが多いので整理中**（月次内訳はホームへ集約済み。特別費/分析/楽天の統合候補）。
 - **ホーム＝今月まるごとダッシュボード**（Home.svelte）: 予算月を切替えながら、**今月の残り（実績）＋「予定どおりなら」の予定残り**、**収入の内訳**、**支出の内訳（区分×費目、実績/予定）**、**特別費（その月の臨時支出・special_expenses から planned_month 一致分）** を1画面で表示（＝MonthlyBreakdown をそのまま表示）。その下に**貯金の目標カード（達成率バー）**。特別費も見込み支出・見込み残りに含める（実績優先・無ければ予定）。Excelの月シートの代替で、イレギュラーな支出が入ると実績の残りが予定残りから下がるのが一目でわかる。**日次の手入力グリッドは作らない**（オーナーは使わないため）。
 - **取引**（Transactions.svelte）: 予算月切替、絞り込み（種別/カテゴリ/人/**口座**）、日付グループ、行タップ編集、**給与PDF取込ボタン**。振替は「口座A→口座B」表示・日次集計から除外。各行のサブに口座名も表示。**口座フィルタ選択中はその口座の当月支出合計をサマリ表示**（楽天カード等の「分離管理」＝③に対応。`listTransactions` の `accountId` フィルタ）。
 - **入力／編集／削除**（AddTransaction.svelte）: 支出/収入/**振替**。振替は移動元/移動先口座を選択。
@@ -142,6 +147,7 @@
   - **壁の整理（重要）**: ①**103万円**＝夫の会社の扶養手当（¥1万/月）の条件で最も低い壁→これが既定の管理ライン。②106万円＝社保の賃金要件だが**2026年10月に撤廃**。③123万円＝えみ本人の所得税（2025年改正で103→123万）。④130万円＝社保の被扶養者認定。**103万を守れば②③④も自動でクリア**。
   - **2026年10月の制度変更**: 社保の賃金要件(月8.8万)が撤廃され、51人以上の勤務先では「**週の所定労働時間20時間以上**」だけで社保加入＝金額では決まらなくなる。えみの勤務先(サーティーンストラット)は200〜400名で常に該当するため、以降は**週20時間未満かどうかが社保扶養の唯一の鍵**。手当(103万)とは別軸なので、上限到達だけでなく週20時間も意識する（UIにも注記済み）。
 - **口座への配分（配分プラン）**: `accounts.monthly_alloc`（毎月どの口座へいくら振り分けるかの計画額）を設定でき、設定タブの「口座への配分」カードで口座ごとに入力＋**合計**を表示（手取りに合わせる目安。`db.ts` の `setAccountAlloc`）。Excel由来の例: ゆうちょ/SBI/ゆうき楽天/えみ楽天/現金などへ配分。列未追加でも動作（未設定扱い）。**②口座振り分け**に対応。
+- **楽天カード分析**（RakutenCard.svelte / RakutenImport.svelte / タブ「楽天」）: 楽天カードの「ご利用代金請求明細書PDF」を取り込み、**何にいくら使ったか**を**カテゴリ別（＋店ドリルダウン）・請求月別・年間**で見る。**家計簿本体とは別管理**（`rakuten_transactions` テーブル。固定費の二重計上を避けるため transactions には入れない）。取込：`extractPdfRows`（pdf.js で全ページを位置から行復元）→ `rakuten/parse.ts`（明細パース＝「払い」の後ろから利用金額を拾う／店名キーワードでカード利用カテゴリを自動判定）→ レビュー→ **請求月単位で置き換え保存**（再取込で重複しない・手直し済みの店カテゴリは引き継ぐ）。タブでは請求月チップ＋カテゴリ別内訳（タップで店明細、店タップで分類変更＝`updateRakutenCategoryByMerchant`）＋年間サマリ（カテゴリ別 合計/月平均）。カテゴリは `RAKUTEN_CATEGORIES`（食・カフェ/娯楽・サブスク/レジャー・旅行/交通/買い物/通信・公共/健康・会費/チャージ・電子マネー/その他）。実データ検証で1月¥223,226・2月¥187,379が請求額と一致。**未作成でも空表示**（`alter`不要、要 `create table rakuten_transactions`）。
 - **設定**（Settings.svelte）: カテゴリ/口座/**予算（固定費・変動費。『12ヶ月へ一括』チェックで年内全月へ）**/定期の管理 ＋ **月の開始日**（settings.month_start_day を変更可）＋ **扶養トラッカー設定**（えみの時給・年間上限）＋ **貯金の目標**（貯蓄カテゴリの目標額）＋ **口座への配分**（配分プラン）。
 - **給与・賞与PDF取込**（§6）: えみ=テキストPDF、ゆうき給料・賞与=スキャン+Azure OCR。
 - **PWA**: ホーム画面に追加可（manifest/アイコン/Service Worker）。アプリシェルはオフラインでも起動（データ表示/入力はオンライン必須）。

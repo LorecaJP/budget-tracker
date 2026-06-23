@@ -169,6 +169,25 @@ create table if not exists payslip_details (
 alter table payslip_details enable row level security;
 create policy "own rows" on payslip_details for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- ---------- 楽天カード明細（家計簿本体とは別管理の分析用・後から追加した表） ----------
+-- 楽天カードの請求明細PDFを取り込んで「何にいくら使ったか（カテゴリ/店・月/年）」を見る用。
+-- 家計簿本体の transactions とは混ぜない（固定費の二重計上を避けるため）。
+-- 取込は請求月(statement_month)単位で置き換え（同じ月を再取込しても重複しない）。
+create table if not exists rakuten_transactions (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  use_date        date not null,                    -- 利用日
+  merchant        text not null,                    -- 利用店名（生表記）
+  amount          integer not null,                 -- 利用金額（円）
+  person          text,                             -- '本人' / '家族'
+  category        text not null default 'その他',   -- カード利用カテゴリ（自動判定・編集可）
+  statement_month text not null,                    -- 'YYYY-MM'（請求月）
+  created_at      timestamptz not null default now()
+);
+create index if not exists idx_rakuten_month on rakuten_transactions(user_id, statement_month);
+alter table rakuten_transactions enable row level security;
+create policy "own rows" on rakuten_transactions for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ============================================================
 -- Row Level Security（本人のデータのみアクセス可）
 -- ============================================================
