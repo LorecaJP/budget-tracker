@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { budgetMonthOf, budgetMonthRange, shiftBudgetMonth, periodKey, ymd, yen } from '../lib/month'
-  import { listTransactions, listCategories, listBudgets, type Budget } from '../lib/db'
+  import { listTransactions, listCategories, listBudgets, setBudget, setBudgetAllMonths, type Budget } from '../lib/db'
+  import { session } from '../lib/session'
   import type { Transaction, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
 
@@ -17,7 +18,7 @@
   let budgets = $state<Record<string, number>>({})   // category_id -> 予定額
   let loading = $state(true)
 
-  interface Row { name: string; actual: number; plan: number }
+  interface Row { id: string | null; name: string; actual: number; plan: number }
   interface Block { div: Division; label: string; rows: Row[]; actSum: number; planSum: number; foreSum: number }
 
   const catsByDiv = $derived.by(() => {
@@ -51,11 +52,11 @@
         const actual = actualByCat.m[c.id] ?? 0
         const plan = budgets[c.id] ?? 0
         if (actual === 0 && plan === 0) continue
-        rows.push({ name: c.name, actual, plan })
+        rows.push({ id: c.id, name: c.name, actual, plan })
         actSum += actual; planSum += plan; foreSum += actual > 0 ? actual : plan
       }
       const u = actualByCat.uncat[div] ?? 0
-      if (u !== 0) { rows.push({ name: '(未分類)', actual: u, plan: 0 }); actSum += u; foreSum += u }
+      if (u !== 0) { rows.push({ id: null, name: '(未分類)', actual: u, plan: 0 }); actSum += u; foreSum += u }
       if (rows.length) blocks.push({ div, label: DIVISION_LABELS[div], rows, actSum, planSum, foreSum })
     }
     return blocks
@@ -89,6 +90,22 @@
     year = m.year; month = m.month; load()
   }
   const pct = (a: number, p: number) => (p > 0 ? Math.min(100, (a / p) * 100) : 0)
+
+  // 費目をタップして、この月の予定額（予算）をその場で編集
+  let editing = $state<{ id: string; name: string; plan: number } | null>(null)
+  let editAll = $state(false)
+  function openBudget(id: string, name: string, plan: number) {
+    editAll = false
+    editing = { id, name, plan }
+  }
+  async function saveBudgetEdit() {
+    if (!editing) return
+    const amount = Math.round(editing.plan || 0)
+    if (editAll) await setBudgetAllMonths(editing.id, year, amount, $session!.user.id)
+    else await setBudget(editing.id, periodKey(year, month), amount, $session!.user.id)
+    budgets[editing.id] = amount   // 即時反映（model が再計算）
+    editing = null
+  }
 </script>
 
 <div class="month-nav">
@@ -119,9 +136,9 @@
     <section class="card">
       {#each b.rows as r}
         {@const over = r.plan > 0 && r.actual > r.plan}
-        <div class="mb-row">
+        <div class="mb-row {r.id ? 'tappable' : ''}" onclick={() => r.id && openBudget(r.id, r.name, r.plan)}>
           <div class="mb-head">
-            <span class="mb-name">{r.name}</span>
+            <span class="mb-name">{r.name}{#if r.id}<span class="mb-edit">›</span>{/if}</span>
             <span class="mb-num"><b class={over ? 'neg' : ''}>{yen(r.actual)}</b>{r.plan ? ` / ${yen(r.plan)}` : ''}</span>
           </div>
           {#if r.plan > 0 && b.div !== 'income'}
@@ -132,5 +149,18 @@
     </section>
   {/each}
 
-  <p class="hint">実績は取引の合計、「/」の後は予定（予算）。予定額は設定の「予算」で入れられます（固定費は12ヶ月へ一括も可）。振替は含めません。</p>
+  <p class="hint">実績は取引の合計、「/」の後は予定（予算）。<strong>費目をタップするとこの月の予定額を編集</strong>できます。振替は含めません。</p>
+{/if}
+
+{#if editing}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="sheet-head"><button class="link" onclick={() => editing = null}>キャンセル</button><span></span><span></span></div>
+      <div class="card-label">{year}年{month}月の予定額</div>
+      <label class="field"><span>{editing.name}</span><input type="number" inputmode="numeric" bind:value={editing.plan} /></label>
+      <label class="check"><input type="checkbox" bind:checked={editAll} /> {year}年の12ヶ月すべてに同額（給料・固定費向け）</label>
+      <button class="primary" onclick={saveBudgetEdit}>保存</button>
+    </div>
+  </div>
 {/if}
