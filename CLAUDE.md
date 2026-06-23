@@ -58,6 +58,7 @@
    │  ├─ supabase.ts       # Supabaseクライアント（鍵はフォールバックで埋め込み済み。§8）
    │  ├─ types.ts          # DB型定義 + DIVISION_LABELS
    │  ├─ month.ts          # 予算月の計算（25日始まり・動的startDay）/ yen / ymd 等
+   │  ├─ businessday.ts    # 日本の祝日（2026-2027直書き）＋「引落日が休日なら翌営業日」/ 毎月の次回引落日
    │  ├─ session.ts        # 認証セッションの store
    │  ├─ seed.ts           # 初回サインイン時の初期データ投入（口座・カテゴリ）
    │  ├─ db.ts             # 全テーブルの取得・CRUDヘルパー（ここに集約）。設定の get/save も
@@ -98,7 +99,7 @@
 - **special_expenses**（特別費）: name, year, planned_month(1-12), budget_amount, actual_amount(null=予定), is_reserved(積立対象か), transaction_id
 - **settings**（設定・1ユーザー1行）: month_start_day(既定25), currency('JPY'), emi_hourly_wage(既定1180), emi_year_cap(既定1030000=扶養トラッカーの年間上限。103万円＝夫の会社の扶養手当の条件)。**アプリで使用中**（§4）。emi_* は後から追加した列（既存DBは `alter table settings add column if not exists ...`。未追加でも既定値で動作）。
 - **payslip_details**（給与明細の追加項目・扶養トラッカー用）: person, pay_date, gross, taxable(課税支給額), commute(通勤手当), work_minutes(総労働時間・分), transaction_id。給与取込時に保存（`unique(user_id, person, pay_date)`＝再取込で更新）。**後から追加した表**。未作成でもアプリは動く（扶養タブは総支給のみ表示・取込時の保存は黙ってスキップ＝`listPayslipDetails`/`upsertPayslipDetail` がフォールバック）。
-- **scheduled_payments**（支払い予定・引落の事前把握）: name, amount(確定額), due_date(引落日), account_id(引落口座), category_id, status(planned/confirmed/paid), memo。「支払い」タブで使用。**後から追加した表**。未作成でも動く（取得は空配列フォールバック＝`listScheduledPayments`。追加時のみ要作成）。`create table if not exists scheduled_payments ...`＋RLS。
+- **scheduled_payments**（支払い予定・引落の事前把握）: name, amount(確定額/予定額), due_date(単発の引落日・null可), due_day(1-28＝毎月くりかえしの引落日), account_id(引落口座), category_id, status(planned/confirmed/paid), memo。「支払い」タブで使用。**後から追加した表**。未作成でも動く（取得は空配列フォールバック＝`listScheduledPayments`。追加時のみ要作成）。`due_day` があれば毎月くりかえし（`businessday.ts` の `nextMonthlyDue` で次回引落日を休日補正して表示）、無ければ `due_date` の単発。既存表には `add column if not exists due_day` ＋ `due_date drop not null`。
 
 ### 会計区分（division）
 `income`（収入）/ `tax`（税金・社保）/ `saving`（貯蓄）/ `fixed`（固定費）/ `variable`（変動費）
@@ -135,7 +136,7 @@
   - **年間**（YearSummary.svelte）: **費目×12予算月**のマトリクス。区分行をタップで開閉（既定で固定費・変動費を開く）。各セルは実績優先・無ければ予定(薄字`.est`)。区分小計・支出計・収支も実績＋予定で算出。1クエリ取得＋文字列境界比較で月振り分け（TZ非依存）。
   - 予定額（予算）の入力は設定タブの「予算」。**`12ヶ月へ一括`チェック（既定ON）で入れた額をその年の1〜12月へ一括反映**（固定費向け。`setBudgetAllMonths`。0以下でその年の当該カテゴリ予算を削除）。
 - **特別費**（SpecialExpenses.svelte）: 年切替、年間合計と毎月の積立目安、月別一覧、追加/編集/削除。
-- **支払い予定**（UpcomingPayments.svelte / タブ「支払い」）: 請求額が**確定してから引き落とされるまで**にキャッシュを用意するためのビュー。各支払いを **確定額＋引落日＋引落口座** で登録（状態 予定/確定/支払済）。**口座ごとに「用意する額（未払い合計）＋最短引落日」**を集計表示し、引落日順のリストで「あと○日／○日超過」を表示。引き落とされたら行を開いて「支払済」にすると合計から外れる（`db.ts` の `listScheduledPayments`/`upsertScheduledPayment`/`setScheduledStatus`、`scheduled_payments` テーブル。未作成でも空表示で動く）。Excelの口座色分け（緑=ゆうちょ/青=SBI/赤=楽天/黄=現金）に対応した「どの口座から引き落ちるか」をここで管理。
+- **支払い予定**（UpcomingPayments.svelte / タブ「支払い」）: 請求額が**確定してから引き落とされるまで**にキャッシュを用意するためのビュー。各支払いを **金額＋引落日＋引落口座** で登録。**毎月くりかえし（due_day）**と**1回だけ（due_date）**を選べ、くりかえしは**引落日が土日祝なら翌営業日**に補正して次回引落日を表示（`businessday.ts`、祝日は2026-2027直書き）。**口座ごとに「用意する額（合計）＋最短引落日」**を集計表示し、引落日順リストで「あと○日／○日超過」を表示。くりかえしは常に次回分を表示（状態管理なし）、単発は引き落とし後に「支払済」で合計から外す（`db.ts` の `listScheduledPayments`/`upsertScheduledPayment`/`setScheduledStatus`、`scheduled_payments` テーブル。未作成でも空表示で動く）。Excelの口座色分け（緑=ゆうちょ/青=SBI/赤=楽天/黄=現金）に対応した「どの口座から引き落ちるか」をここで管理。初期口座は汎用（現金/銀行/クレカ）なので、実口座（ゆうちょ/住信SBI/ゆうき楽天/えみ楽天）はSQLで追加して紐づけ。
 - **貯金の目標＆進捗**: `categories.goal_amount`（貯蓄カテゴリの目標額）を設定でき、ホームの「貯金の目標」カードに **累計(=その貯蓄カテゴリへの全期間の支出)/目標＝達成率** をバー表示（`db.ts` の `setCategoryGoal`/`sumSavingByCategory`）。目標の設定は設定タブの「貯金の目標」カード。列未追加でも動作（目標未設定扱い）。Excel由来の目標例: 防衛費80万/特別費30万/ゆうき貯金12万/えみ貯金12万。
 - **扶養トラッカー**（FuyouTracker.svelte / タブ「扶養」）: えみが夫の扶養を外れないよう、**暦年(1〜12月)・支給日ベース**で `category='えみ給料'` の収入を集計。**ヒーローカード**（数字/ITが苦手な妻向けにシンプル化）: **信号（緑〜79% / 黄80〜95% / 赤96%〜）＋メッセージ**（緑「まだまだ大丈夫」/ 黄「そろそろ気をつけてね」/ 赤「もうギリギリ」、超過時のみ「超えちゃった」）。その下に **「今年あと」「1ヶ月あたりあと」** × **[時間 / 金額]** を**固定サイズ62pxの4タイル**（Lucide: clock=時間=緑 / banknote=金額=青。折り返さず常に同サイズ）。進捗バー＋「○万円まで○%」。超過時はタイル0表示＋「上限を○超えています」。`1ヶ月あたり`＝今年の残りを残り月数で割った目安（今月が未払いなら含む）。明細（課税支給額・総支給・通勤手当・総労働時間・着地見込み）は**別カード**。月別（社保の月8.8万ライン警告つき）も表示。色トークンは `app.css` の `--fy-*`（ダーク対応）、スタイルは `.fy-*`。**上限判定は課税支給額（通勤手当を除く＝103万手当・税の正しい基準。`課税支給額＝総支給−通勤手当` で算出。明細の課税支給額は年内累計なので使わない）**で、**総支給（通勤手当込み）も併記**。さらに `payslip_details` から **通勤手当の合計・総労働時間の合計（週平均h／20時間接近で警告）** も蓄積表示。**年末調整還付（category=null）は報酬でないため集計対象外**。時給・年間上限は `settings.emi_hourly_wage/emi_year_cap`（設定タブで変更可、`db.ts` の `getFuyouConfig/saveFuyouConfig`。列未追加でも既定値で動作）。集計は暦年なので**予算月(25日始まり)とは別軸**。
   - **壁の整理（重要）**: ①**103万円**＝夫の会社の扶養手当（¥1万/月）の条件で最も低い壁→これが既定の管理ライン。②106万円＝社保の賃金要件だが**2026年10月に撤廃**。③123万円＝えみ本人の所得税（2025年改正で103→123万）。④130万円＝社保の被扶養者認定。**103万を守れば②③④も自動でクリア**。

@@ -47,7 +47,8 @@ export interface ScheduledPayment {
   id: string
   name: string
   amount: number          // 確定額・円・整数
-  due_date: string        // 'YYYY-MM-DD' 引落日
+  due_date: string | null // 'YYYY-MM-DD' 引落日（単発のとき）
+  due_day: number | null  // 1-28：毎月くりかえしの引落日（休日は翌営業日に補正して表示）
   account_id: string | null   // 引落口座
   category_id: string | null
   status: ScheduledStatus
