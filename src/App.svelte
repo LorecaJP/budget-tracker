@@ -9,12 +9,13 @@
   import Transactions from './components/Transactions.svelte'
   import Analysis from './components/Analysis.svelte'
   import Ledger from './components/Ledger.svelte'
+  import UpcomingPayments from './components/UpcomingPayments.svelte'
   import SpecialExpenses from './components/SpecialExpenses.svelte'
   import FuyouTracker from './components/FuyouTracker.svelte'
   import Settings from './components/Settings.svelte'
   import AddTransaction from './components/AddTransaction.svelte'
 
-  type Tab = 'home' | 'tx' | 'analysis' | 'year' | 'special' | 'fuyou' | 'settings'
+  type Tab = 'home' | 'tx' | 'analysis' | 'year' | 'pay' | 'special' | 'fuyou' | 'settings'
   let tab = $state<Tab>('home')
   let showAdd = $state(false)
   let key = $state(0)
@@ -47,6 +48,7 @@
     { id: 'tx', label: '取引' },
     { id: 'analysis', label: '分析' },
     { id: 'year', label: '収支' },
+    { id: 'pay', label: '支払い' },
     { id: 'special', label: '特別費' },
     { id: 'fuyou', label: '扶養' },
     { id: 'settings', label: '設定' },
@@ -62,6 +64,8 @@
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14v4M12 9v9M17 5v13"/></svg>
   {:else if id === 'year'}
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v4h-4"/></svg>
+  {:else if id === 'pay'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
   {:else if id === 'special'}
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
   {:else if id === 'fuyou'}
@@ -91,6 +95,7 @@
           {:else if tab === 'tx'}<Transactions />
           {:else if tab === 'analysis'}<Analysis />
           {:else if tab === 'year'}<Ledger />
+          {:else if tab === 'pay'}<UpcomingPayments />
           {:else if tab === 'special'}<SpecialExpenses />
           {:else if tab === 'fuyou'}<FuyouTracker />
           {:else if tab === 'settings'}<Settings />{/if}
