@@ -43,6 +43,38 @@ export async function extractPdfText(file: File): Promise<ExtractResult> {
   }
 }
 
+// 全ページのテキストを「行」単位で復元する（表のPDF＝楽天カード明細など用）。
+// pdf.js の getTextContent は位置つきの断片を返すので、Y座標でグルーピングして
+// 同じ行の断片を X 順に連結し、視覚的な行を組み立てる。
+export async function extractPdfRows(file: File): Promise<{ rows: string[]; text: string }> {
+  const data = new Uint8Array(await file.arrayBuffer())
+  const task = pdfjs.getDocument({ data })
+  try {
+    const doc = await task.promise
+    const rows: string[] = []
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p)
+      const tc = await page.getTextContent()
+      const buckets: { y: number; cells: { x: number; s: string }[] }[] = []
+      for (const it of tc.items) {
+        if (!('str' in it) || !it.str.trim()) continue
+        const tr = (it as unknown as { transform: number[] }).transform
+        const x = tr[4], y = tr[5]
+        let b = buckets.find(bk => Math.abs(bk.y - y) <= 3)
+        if (!b) { b = { y, cells: [] }; buckets.push(b) }
+        b.cells.push({ x, s: it.str })
+      }
+      buckets.sort((a, b) => b.y - a.y)   // 上から下へ（Y降順）
+      for (const b of buckets) {
+        rows.push(b.cells.sort((a, b) => a.x - b.x).map(c => c.s).join(' '))
+      }
+    }
+    return { rows, text: rows.join('\n') }
+  } finally {
+    task.destroy()
+  }
+}
+
 // スキャンPDFの1ページ目を JPEG 画像（Blob）に変換する（クラウドOCRへ送る用）。
 // Azure Document Intelligence の無料枠(F0)は1ファイル最大4MB。CamScanner 等の高解像度
 // 写真スキャンを PNG で出すと容易に4MBを超えて Azure に弾かれる（非2xx）ため、

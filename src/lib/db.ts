@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus } from './types'
+import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus, RakutenTx } from './types'
 
 // ---------- 取得 ----------
 export async function listAccounts(includeArchived = false): Promise<Account[]> {
@@ -272,6 +272,34 @@ export async function deleteScheduledPayment(id: string) {
 }
 export async function setScheduledStatus(id: string, status: ScheduledStatus) {
   return supabase.from('scheduled_payments').update({ status }).eq('id', id)
+}
+
+// ---------- 楽天カード明細（別管理の分析用） ----------
+// テーブル未作成でも取得は空配列にフォールバック。
+export interface RakutenItemInput {
+  use_date: string; merchant: string; amount: number; person: string; category: string
+}
+export async function listRakutenTx(): Promise<RakutenTx[]> {
+  const { data, error } = await supabase.from('rakuten_transactions').select('*')
+    .order('use_date', { ascending: false })
+  if (error || !data) return []
+  return data as RakutenTx[]
+}
+// 請求月(statement_month)単位で置き換え（再取込で重複しない）。手直し済みの店カテゴリは引き継ぐ。
+export async function replaceRakutenStatement(statementMonth: string, items: RakutenItemInput[]) {
+  const { data: ex } = await supabase.from('rakuten_transactions').select('merchant, category')
+  const map = new Map<string, string>()
+  for (const r of (ex ?? []) as { merchant: string; category: string }[]) map.set(r.merchant, r.category)
+  await supabase.from('rakuten_transactions').delete().eq('statement_month', statementMonth)
+  const rows = items.map(it => ({
+    use_date: it.use_date, merchant: it.merchant, amount: it.amount, person: it.person,
+    category: map.get(it.merchant) ?? it.category, statement_month: statementMonth,
+  }))
+  return supabase.from('rakuten_transactions').insert(rows)
+}
+// 店名でカテゴリを一括変更（手直し）。
+export async function updateRakutenCategoryByMerchant(merchant: string, category: string) {
+  return supabase.from('rakuten_transactions').update({ category }).eq('merchant', merchant)
 }
 
 // 給与明細の再取込時、同じ明細で前回登録した取引（収入＋控除）を置き換えるために削除する。

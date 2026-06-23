@@ -12,10 +12,11 @@
   import UpcomingPayments from './components/UpcomingPayments.svelte'
   import SpecialExpenses from './components/SpecialExpenses.svelte'
   import FuyouTracker from './components/FuyouTracker.svelte'
+  import RakutenCard from './components/RakutenCard.svelte'
   import Settings from './components/Settings.svelte'
   import AddTransaction from './components/AddTransaction.svelte'
 
-  type Tab = 'home' | 'tx' | 'analysis' | 'year' | 'pay' | 'special' | 'fuyou' | 'settings'
+  type Tab = 'home' | 'tx' | 'analysis' | 'year' | 'pay' | 'special' | 'fuyou' | 'rakuten' | 'settings'
   let tab = $state<Tab>('home')
   let showAdd = $state(false)
   let key = $state(0)
@@ -51,6 +52,7 @@
     { id: 'pay', label: '支払い' },
     { id: 'special', label: '特別費' },
     { id: 'fuyou', label: '扶養' },
+    { id: 'rakuten', label: '楽天' },
     { id: 'settings', label: '設定' },
   ]
 </script>
@@ -70,6 +72,8 @@
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
   {:else if id === 'fuyou'}
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>
+  {:else if id === 'rakuten'}
+    <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
   {:else if id === 'settings'}
     <svg class="tab-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
   {/if}
@@ -98,6 +102,7 @@
           {:else if tab === 'pay'}<UpcomingPayments />
           {:else if tab === 'special'}<SpecialExpenses />
           {:else if tab === 'fuyou'}<FuyouTracker />
+          {:else if tab === 'rakuten'}<RakutenCard />
           {:else if tab === 'settings'}<Settings />{/if}
         {/key}
       {/if}
