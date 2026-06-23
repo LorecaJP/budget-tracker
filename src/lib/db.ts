@@ -285,11 +285,15 @@ export async function listRakutenTx(): Promise<RakutenTx[]> {
   if (error || !data) return []
   return data as RakutenTx[]
 }
-// 請求月(statement_month)単位で置き換え（再取込で重複しない）。手直し済みの店カテゴリは引き継ぐ。
-export async function replaceRakutenStatement(statementMonth: string, items: RakutenItemInput[]) {
-  const { data: ex } = await supabase.from('rakuten_transactions').select('merchant, category')
+// 請求月(statement_month)単位で置き換え（再取込で重複しない）。
+// 既定では手直し済みの店カテゴリを引き継ぐ。recategorize=true なら引き継がず、
+// 取込時の自動分類（parse.ts の最新ルール）で全件を上書きする（ルール更新の反映用）。
+export async function replaceRakutenStatement(statementMonth: string, items: RakutenItemInput[], recategorize = false) {
   const map = new Map<string, string>()
-  for (const r of (ex ?? []) as { merchant: string; category: string }[]) map.set(r.merchant, r.category)
+  if (!recategorize) {
+    const { data: ex } = await supabase.from('rakuten_transactions').select('merchant, category')
+    for (const r of (ex ?? []) as { merchant: string; category: string }[]) map.set(r.merchant, r.category)
+  }
   await supabase.from('rakuten_transactions').delete().eq('statement_month', statementMonth)
   const rows = items.map(it => ({
     use_date: it.use_date, merchant: it.merchant, amount: it.amount, person: it.person,

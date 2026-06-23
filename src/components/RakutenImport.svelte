@@ -10,6 +10,9 @@
   let saving = $state(false)
   let error = $state('')
   let parsed = $state<ParsedRakuten | null>(null)
+  // 再判定で上書き（手直しを無視し最新の自動分類で入れ直す）。選択はセッション間で保持。
+  let recat = $state(localStorage.getItem('rk_recat') === '1')
+  $effect(() => { localStorage.setItem('rk_recat', recat ? '1' : '0') })
 
   const catSummary = $derived.by(() => {
     if (!parsed) return [] as [string, number][]
@@ -36,7 +39,7 @@
   async function save() {
     if (!parsed) return
     saving = true
-    const { error: e } = await replaceRakutenStatement(parsed.statement_month, parsed.items)
+    const { error: e } = await replaceRakutenStatement(parsed.statement_month, parsed.items, recat)
     saving = false
     if (e) { error = '保存に失敗（rakuten_transactions テーブルの作成が必要かもしれません）：' + e.message; return }
     onsaved()
@@ -63,6 +66,10 @@
           <div class="budget-row"><span class="tx-name">{c}</span><span class="tx-amt neg">{yen(v)}</span></div>
         {/each}
       </section>
+      <label class="hint" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:4px">
+        <input type="checkbox" bind:checked={recat} />
+        自動分類でやり直す（店ごとの手直しも上書き）
+      </label>
       <button class="primary" onclick={save} disabled={saving}>{saving ? '登録中…' : 'この内容で登録'}</button>
       <p class="hint">カテゴリは取り込み後、「楽天カード」タブで店ごとに直せます。</p>
     {/if}
