@@ -186,16 +186,28 @@ export async function deleteSpecialExpense(id: string) {
   return supabase.from('special_expenses').delete().eq('id', id)
 }
 
-// ---------- 設定（1ユーザー1行） ----------
+// ---------- 世帯（共有・えみ専用ログイン用） ----------
+// household_members: 同じ世帯のメンバー（誰がどの世帯か＋person='ゆうき'/'えみ'）。
+// RLS で同世帯のデータを共有する（schema_supabase.sql 末尾「世帯共有」/ supabase/household_share.sql）。
+// テーブル未作成（移行前）でも null フォールバックで従来どおり動く（＝単一ユーザー・全画面表示）。
+export interface Membership { user_id: string; household_id: string; person: string | null; role: 'owner' | 'member' }
+export async function getMyMembership(userId: string): Promise<Membership | null> {
+  const { data, error } = await supabase.from('household_members')
+    .select('user_id, household_id, person, role').eq('user_id', userId).maybeSingle()
+  if (error || !data) return null
+  return data as Membership
+}
+
+// ---------- 設定（世帯で1行＝owner の行を共有） ----------
 export interface AppSettings { month_start_day: number; currency: string }
 export async function getSettings(): Promise<AppSettings | null> {
-  const { data } = await supabase.from('settings').select('month_start_day, currency').maybeSingle()
+  const { data } = await supabase.from('settings').select('month_start_day, currency').limit(1).maybeSingle()
   return (data as AppSettings) ?? null
 }
 export async function saveSettings(s: Partial<AppSettings>, userId: string) {
-  // 既存があれば更新、なければ作成（PK は user_id）
-  const { data } = await supabase.from('settings').select('user_id').maybeSingle()
-  if (data) return supabase.from('settings').update(s).eq('user_id', userId)
+  // 設定は世帯で1行。既存があればその行（owner）を更新、なければ作成。
+  const { data } = await supabase.from('settings').select('user_id').limit(1).maybeSingle()
+  if (data) return supabase.from('settings').update(s).eq('user_id', (data as { user_id: string }).user_id)
   return supabase.from('settings').insert({ ...s, user_id: userId })
 }
 
@@ -206,7 +218,7 @@ export interface FuyouConfig { hourly_wage: number; year_cap: number }
 const FUYOU_DEFAULT: FuyouConfig = { hourly_wage: 1180, year_cap: 1030000 }   // 時給1,180円 / 103万円（夫の会社の扶養手当の条件）
 
 export async function getFuyouConfig(): Promise<FuyouConfig> {
-  const { data, error } = await supabase.from('settings').select('emi_hourly_wage, emi_year_cap').maybeSingle()
+  const { data, error } = await supabase.from('settings').select('emi_hourly_wage, emi_year_cap').limit(1).maybeSingle()
   if (error || !data) return { ...FUYOU_DEFAULT }
   const d = data as { emi_hourly_wage: number | null; emi_year_cap: number | null }
   return {
@@ -216,8 +228,8 @@ export async function getFuyouConfig(): Promise<FuyouConfig> {
 }
 export async function saveFuyouConfig(c: FuyouConfig, userId: string) {
   const payload = { emi_hourly_wage: Math.round(c.hourly_wage), emi_year_cap: Math.round(c.year_cap) }
-  const { data } = await supabase.from('settings').select('user_id').maybeSingle()
-  if (data) return supabase.from('settings').update(payload).eq('user_id', userId)
+  const { data } = await supabase.from('settings').select('user_id').limit(1).maybeSingle()
+  if (data) return supabase.from('settings').update(payload).eq('user_id', (data as { user_id: string }).user_id)
   return supabase.from('settings').insert({ ...payload, user_id: userId })
 }
 // 指定した暦年(1/1〜12/31)の「えみ給料」収入を取得（支給日ベース）

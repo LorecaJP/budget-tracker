@@ -219,3 +219,48 @@ create policy "own settings" on settings      for all using (user_id = auth.uid(
 --                       携帯代, 生命保険, ジム代, 定期代・交通費
 -- 変動費(variable)    : 食費, 日用品代, 交際費, ゆうきおこづかい, えみおこづかい
 -- ============================================================
+
+-- ============================================================
+-- 世帯共有（えみ専用ログイン・後から追加）
+-- ------------------------------------------------------------
+-- ゆうき / えみ が別々のログインで同じ家計データを共有するための仕組み。
+-- 既存データは ゆうき 所有のまま、上の各表の「本人のみ(own rows)」RLS を
+-- 「同じ世帯なら閲覧/編集可(household rw)」へ置き換える（列追加・データ移行なし）。
+-- ▼ 既存DBへの適用・連携・ロールバックの実行手順は supabase/household_share.sql を参照。
+--   ここは定義の控え（source of truth）。
+-- ============================================================
+
+-- 世帯メンバー（誰がどの世帯か＋person='ゆうき'/'えみ'）
+create table if not exists household_members (
+  user_id      uuid primary key references auth.users(id) on delete cascade,
+  household_id uuid not null,
+  person       text,                                   -- 'ゆうき' / 'えみ'（表示・出し分け用）
+  role         text not null default 'member' check (role in ('owner','member')),
+  created_at   timestamptz not null default now()
+);
+alter table household_members enable row level security;
+
+-- security definer で RLS をバイパス（household_members を参照するポリシーの無限再帰を回避）
+create or replace function my_household_id()
+  returns uuid language sql stable security definer set search_path = public as $$
+  select household_id from household_members where user_id = auth.uid() limit 1;
+$$;
+create or replace function in_my_household(row_user uuid)
+  returns boolean language sql stable security definer set search_path = public as $$
+  select row_user = auth.uid()
+      or exists (
+        select 1 from household_members m
+        where m.user_id = row_user
+          and m.household_id = (select household_id from household_members where user_id = auth.uid() limit 1)
+      );
+$$;
+
+create policy "read my household" on household_members
+  for select using ( household_id = my_household_id() );
+
+-- 各データ表の RLS は「own rows / own settings」を廃し、下記に統一する（household_share.sql で一括置換）:
+--   create policy "household rw" on <table> for all
+--     using ( user_id = auth.uid() or in_my_household(user_id) )
+--     with check ( user_id = auth.uid() or in_my_household(user_id) );
+-- 対象: accounts, categories, transactions, recurring_rules, budgets,
+--       special_expenses, settings, scheduled_payments, payslip_details, rakuten_transactions

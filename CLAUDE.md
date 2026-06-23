@@ -11,7 +11,7 @@
 ## 0. これは何か（すぐ作業を始めるための要約）
 
 - 個人専用の家計簿Webアプリ。現行のExcel家計簿を置き換えるのが目的。
-- 利用者は1人（オーナーのみ）。Mac/iPhoneのブラウザから使い、データは Supabase で同期。
+- 利用者は主にオーナー（ゆうき）。Mac/iPhoneのブラウザから使い、データは Supabase で同期。**えみも自分のログインを持てる**（世帯共有・§5末「世帯共有」。えみは扶養トップのシンプル表示で閲覧＋入力可）。
 - すでに **本番稼働中**。基本機能＋給与/賞与PDF取込＋PWAまで実装済み。残りは §7「未完了」。
 - 将来的には Apple（SwiftUI）ネイティブ＋Apple Watch へ移行する構想があるため、**データモデルは移植しやすい形を保つ**こと（§4）。
 
@@ -95,7 +95,7 @@
 
 ## 3. データモデル（Supabase / Postgres）
 
-詳細は `schema_supabase.sql`。テーブルは以下の7つ。**全テーブルに `user_id` と RLS（本人のみアクセス）が設定済み。**
+詳細は `schema_supabase.sql`。**全テーブルに `user_id` と RLS が設定済み。** 既定は「本人のみアクセス」だが、**世帯共有（えみ専用ログイン）を有効化すると「同じ世帯なら閲覧/編集可」に置き換わる**（`household_members` ＋ `in_my_household()`。§5末「世帯共有」/ `supabase/household_share.sql`）。
 
 - **accounts**（口座）: name, type(cash/bank/credit/emoney), opening_balance(整数・円), color, sort_order, archived, monthly_alloc(毎月この口座へ振り分ける計画額＝配分プラン。**後から追加した列**。`alter table accounts add column if not exists monthly_alloc integer;`。未追加でも未設定として動作)
 - **categories**（カテゴリ）: name, division(会計区分), parent_id, color, icon, sort_order, archived, goal_amount(貯金の目標額＝貯蓄カテゴリ用。**後から追加した列**。`alter table categories add column if not exists goal_amount integer;`。未追加でも目標未設定として動作)
@@ -103,10 +103,11 @@
 - **recurring_rules**（定期）: name, amount, type, category_id, account_id, cycle(monthly/weekly), day_of_month, weekday, start_date, end_date, active, memo
 - **budgets**（予算）: category_id, period_month('YYYY-MM'), amount。`unique(user_id, category_id, period_month)`。**予算＝その月の「予定額」として「収支」タブ（月次・年間）に表示し、実績が入ると置き換える**（`db.ts` の `listBudgetsForYear`/`setBudgetAllMonths`＝年12ヶ月へ一括）。
 - **special_expenses**（特別費）: name, year, planned_month(1-12), budget_amount, actual_amount(null=予定), is_reserved(積立対象か), transaction_id
-- **settings**（設定・1ユーザー1行）: month_start_day(既定25), currency('JPY'), emi_hourly_wage(既定1180), emi_year_cap(既定1030000=扶養トラッカーの年間上限。103万円＝夫の会社の扶養手当の条件)。**アプリで使用中**（§4）。emi_* は後から追加した列（既存DBは `alter table settings add column if not exists ...`。未追加でも既定値で動作）。
+- **settings**（設定・1行）: month_start_day(既定25), currency('JPY'), emi_hourly_wage(既定1180), emi_year_cap(既定1030000=扶養トラッカーの年間上限。103万円＝夫の会社の扶養手当の条件)。**アプリで使用中**（§4）。emi_* は後から追加した列（既存DBは `alter table settings add column if not exists ...`。未追加でも既定値で動作）。**世帯共有時は世帯で1行＝owner の行を共有**（`getSettings`/`saveSettings`/`saveFuyouConfig` は `limit(1)` で単一行を読み、更新は既存行の `user_id` を対象にする＝えみが変えても owner 行を更新し2行に増えない）。
 - **payslip_details**（給与明細の追加項目・扶養トラッカー用）: person, pay_date, gross, taxable(課税支給額), commute(通勤手当), work_minutes(総労働時間・分), transaction_id。給与取込時に保存（`unique(user_id, person, pay_date)`＝再取込で更新）。**後から追加した表**。未作成でもアプリは動く（扶養タブは総支給のみ表示・取込時の保存は黙ってスキップ＝`listPayslipDetails`/`upsertPayslipDetail` がフォールバック）。
 - **rakuten_transactions**（楽天カード明細・**家計簿本体とは別管理**の分析用）: use_date, merchant(利用店名), amount(利用金額), person(本人/家族), category(カード利用カテゴリ・自動判定&編集可), statement_month('YYYY-MM'＝請求月)。「楽天」タブで使用。**後から追加した表**。未作成でも空表示で動く（`listRakutenTx`）。請求月単位で置き換え（`replaceRakutenStatement`＝再取込で重複しない・手直し済みの店カテゴリは引き継ぐ）。固定費の二重計上を避けるため本体 transactions には入れない。
 - **scheduled_payments**（支払い予定・引落の事前把握）: name, amount(確定額/予定額), due_date(単発の引落日・null可), due_day(1-28＝毎月くりかえしの引落日), account_id(引落口座), category_id, status(planned/confirmed/paid), memo。「支払い」タブで使用。**後から追加した表**。未作成でも動く（取得は空配列フォールバック＝`listScheduledPayments`。追加時のみ要作成）。`due_day` があれば毎月くりかえし（`businessday.ts` の `nextMonthlyDue` で次回引落日を休日補正して表示）、無ければ `due_date` の単発。既存表には `add column if not exists due_day` ＋ `due_date drop not null`。
+- **household_members**（世帯メンバー・**世帯共有/えみ専用ログイン用**・後から追加した表）: user_id(PK), household_id, person('ゆうき'/'えみ'＝表示の出し分け用), role('owner'/'member')。**ゆうき/えみ が別ログインで同じ家計データを共有**するための表。RLS は `my_household_id()`/`in_my_household()`（**security definer**で自己参照の無限再帰を回避）を使い、各データ表のポリシーを「本人のみ」→「同じ世帯なら閲覧/編集可」に置換する。**未作成（移行前）でもアプリは動く**＝`getMyMembership` が null を返し、単一ユーザー・全画面表示で従来どおり。作成・連携・ロールバックは `supabase/household_share.sql`（§5末）。
 
 ### 会計区分（division）
 `income`（収入）/ `tax`（税金・社保）/ `saving`（貯蓄）/ `fixed`（固定費）/ `variable`（変動費）
@@ -131,9 +132,9 @@
 
 ## 5. 完了していること（実装済み機能）
 
-- **認証**（Auth.svelte）: メール＋パスワード。RLSで本人のデータのみ。
-- **初回シード**（seed.ts）: 初サインイン時、カテゴリが空なら口座（現金/銀行/クレカ）と Excel由来のカテゴリ一式（ゆうき給料/えみ給料/ボーナス/各税・保険/各固定費/各変動費 等）を自動投入。
-- **タブナビ**（App.svelte）: **6タブ**＝ホーム / 取引 / **ふりかえり** / **そなえ** / **扶養** / 設定（id: home/tx/reports/prepare/fuyou/settings）。9→6に整理済み：**ふりかえり**(Reports)＝[分析｜年間｜楽天]、**そなえ**(Prepare)＝[支払い｜特別費] をセグメント切替で束ねる（各画面はそのまま再利用、サブ選択は localStorage 保持）。**扶養は独立タブのまま**（将来のえみ用ビューでトップにする想定）。月次内訳はホームに集約済み。起動時に設定読込→シード→描画をゲート。**将来：ユーザー（ゆうき/えみ）でトップpage・表示タブを出し分ける構想**（えみ＝扶養トップ・楽天非表示。アカウント分離は未着手＝§7）。
+- **認証**（Auth.svelte）: メール＋パスワード。RLSで本人のデータのみ（**世帯共有を有効化すると同じ世帯で共有**＝§5末「世帯共有」）。
+- **初回シード**（seed.ts）: 初サインイン時、カテゴリが空なら口座（現金/銀行/クレカ）と Excel由来のカテゴリ一式（ゆうき給料/えみ給料/ボーナス/各税・保険/各固定費/各変動費 等）を自動投入。**世帯共有時、えみ（member）ではシードしない**（世帯データと重複するため。`App.boot` が `membership.role` で判定）。
+- **タブナビ**（App.svelte）: **6タブ**＝ホーム / 取引 / **ふりかえり** / **そなえ** / **扶養** / 設定（id: home/tx/reports/prepare/fuyou/settings）。9→6に整理済み：**ふりかえり**(Reports)＝[分析｜年間｜楽天]、**そなえ**(Prepare)＝[支払い｜特別費] をセグメント切替で束ねる（各画面はそのまま再利用、サブ選択は localStorage 保持）。**扶養は独立タブのまま**。月次内訳はホームに集約済み。起動時に設定読込→（membership判定）→シード→描画をゲート。**ログイン中のユーザーで表示タブを出し分け**（`getMyMembership` の `person`・`tabIds` を `$derived`）：**えみ＝[扶養(トップ)/ホーム/取引/設定]** のシンプル表示（ふりかえり・そなえを隠す＝**楽天も非表示**）、**ゆうき＝6タブ全部**。**未連携（person判定不可）は全タブ＝従来どおり**（移行前でも無改修で動く）。世帯共有の有効化手順は§5末。
 - **ホーム＝今月まるごとダッシュボード**（Home.svelte）: 予算月を切替えながら、**今月の残り（実績）＋「予定どおりなら」の予定残り**、**収入の内訳**、**支出の内訳（区分×費目、実績/予定）**、**特別費（その月の臨時支出・special_expenses から planned_month 一致分）** を1画面で表示（＝MonthlyBreakdown をそのまま表示）。その下に**貯金の目標カード（達成率バー）**。特別費も見込み支出・見込み残りに含める（実績優先・無ければ予定）。Excelの月シートの代替で、イレギュラーな支出が入ると実績の残りが予定残りから下がるのが一目でわかる。**日次の手入力グリッドは作らない**（オーナーは使わないため）。
 - **取引**（Transactions.svelte）: 予算月切替、絞り込み（種別/カテゴリ/人/**口座**）、日付グループ、行タップ編集、**給与PDF取込ボタン**。振替は「口座A→口座B」表示・日次集計から除外。各行のサブに口座名も表示。**口座フィルタ選択中はその口座の当月支出合計をサマリ表示**（楽天カード等の「分離管理」＝③に対応。`listTransactions` の `accountId` フィルタ）。
 - **入力／編集／削除**（AddTransaction.svelte）: 支出/収入/**振替**。振替は移動元/移動先口座を選択。
@@ -156,8 +157,9 @@
 - **設定**（Settings.svelte）: カテゴリ/口座/**予算（固定費・変動費。『12ヶ月へ一括』チェックで年内全月へ）**/定期の管理 ＋ **月の開始日**（settings.month_start_day を変更可）＋ **扶養トラッカー設定**（えみの時給・年間上限）＋ **貯金の目標**（貯蓄カテゴリの目標額）＋ **口座への配分**（配分プラン）。
 - **給与・賞与PDF取込**（§6）: えみ=テキストPDF、ゆうき給料・賞与=スキャン+Azure OCR。
 - **PWA**: ホーム画面に追加可（manifest/アイコン/Service Worker）。アプリシェルはオフラインでも起動（データ表示/入力はオンライン必須）。
-
----
+- **世帯共有（えみ専用ログイン）**: ゆうき / えみ が**別々のログイン**を使いつつ、家計データは**世帯で1つを共有**する（えみも閲覧＋入力できる＝読み書き可）。既存データは ゆうき 所有のまま、RLS を「本人のみ」→「同じ世帯なら閲覧/編集可」へ置換するだけ（**列追加・データ移行なし**）。仕組みは `household_members` ＋ `in_my_household()`（§3）。アプリは `getMyMembership` で**ログイン中が誰かを判定**し、**えみは扶養トップのシンプル表示／ゆうきは全タブ**（§5タブナビ）。`settings` は世帯で1行（owner 行を共有）。
+  - **有効化手順（オーナーが Supabase で実行・本番DB）**: `supabase/household_share.sql` 参照。①「1) 仕組み」「2) RLS 置換」を SQL Editor で実行（**いつでも安全**＝ゆうきの見え方は従来どおり）→ ②**えみがアプリで「アカウントを作る」→メール確認→サインイン**→ ③「3) 連携」の `YUUKI_EMAIL`/`EMI_EMAIL` を実メールに書き換えて実行（ゆうき=owner / えみ=member を同じ世帯に登録＋えみが連携前に自動投入した初期データを掃除）。**注意：えみは連携(③)まで入力しない**（③が初期データの重複を消すため）。元に戻すは同ファイル「9) ロールバック」。
+  - **RLS の要点（落とし穴対策）**: `my_household_id()`/`in_my_household()` は **`security definer`＋`set search_path=public`**。`household_members` を参照するポリシーを通常権限で書くと**無限再帰エラー**になるため、definer 関数で RLS をバイパスして判定する。各表ポリシーは `using/with check = ( user_id = auth.uid() or in_my_household(user_id) )`（**自分の行 or 同じ世帯**。前段の `user_id = auth.uid()` で**未連携でも自分の行は必ず見える**＝移行直後やロールバック後の事故防止）。アプリ側は **`household_members` 未作成でも `getMyMembership` が null で従来動作**するため、アプリ変更を先にデプロイしてOK（SQL は後追いで安全）。
 
 ## 6. 給与・賞与PDF取込 ＆ Azure OCR（重要・実装済み）
 
