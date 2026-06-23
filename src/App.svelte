@@ -2,7 +2,7 @@
   import { session, sessionReady } from './lib/session'
   import { supabase } from './lib/supabase'
   import { ensureSeed } from './lib/seed'
-  import { getSettings } from './lib/db'
+  import { getSettings, getMyMembership, type Membership } from './lib/db'
   import { setMonthStartDay } from './lib/month'
   import Auth from './components/Auth.svelte'
   import Home from './components/Home.svelte'
@@ -19,6 +19,7 @@
   let key = $state(0)
   let booted = $state(false)
   let ready = $state(false)
+  let membership = $state<Membership | null>(null)
 
   $effect(() => {
     const s = $session
@@ -29,9 +30,12 @@
   // 失敗しても既定（25日始まり）で必ず描画に進む。
   async function boot(userId: string) {
     try {
+      membership = await getMyMembership(userId)        // 未連携(=単一ユーザー)なら null → 全画面表示
+      if (membership?.person === 'えみ') tab = 'fuyou'  // えみは扶養をトップに
       const st = await getSettings()
       if (st?.month_start_day) setMonthStartDay(st.month_start_day)
-      await ensureSeed(userId)
+      // えみ（member）では初期データを投入しない（世帯データと重複するため）。owner/未連携のみシード。
+      if (!membership || membership.role === 'owner') await ensureSeed(userId)
     } catch (e) {
       console.error('boot failed', e)
     } finally {
@@ -41,14 +45,13 @@
 
   function onSaved() { showAdd = false; key++ }
 
-  const TABS: { id: Tab; label: string }[] = [
-    { id: 'home', label: 'ホーム' },
-    { id: 'tx', label: '取引' },
-    { id: 'reports', label: 'ふりかえり' },
-    { id: 'prepare', label: 'そなえ' },
-    { id: 'fuyou', label: '扶養' },
-    { id: 'settings', label: '設定' },
-  ]
+  const TAB_LABELS: Record<Tab, string> = {
+    home: 'ホーム', tx: '取引', reports: 'ふりかえり', prepare: 'そなえ', fuyou: '扶養', settings: '設定',
+  }
+  // 表示タブを人別に出し分け（えみ＝扶養トップ＋楽天など複雑なタブを隠したシンプル表示）。
+  const TABS_FULL: Tab[] = ['home', 'tx', 'reports', 'prepare', 'fuyou', 'settings']
+  const TABS_EMI: Tab[] = ['fuyou', 'home', 'tx', 'settings']
+  const tabIds = $derived(membership?.person === 'えみ' ? TABS_EMI : TABS_FULL)
 </script>
 
 {#snippet tabIcon(id: Tab)}
@@ -100,10 +103,10 @@
     {/if}
 
     <nav class="tabbar">
-      {#each TABS as t}
-        <button class="tab {tab === t.id ? 'active' : ''}" onclick={() => tab = t.id}>
-          {@render tabIcon(t.id)}
-          <span class="tab-label">{t.label}</span>
+      {#each tabIds as id}
+        <button class="tab {tab === id ? 'active' : ''}" onclick={() => tab = id}>
+          {@render tabIcon(id)}
+          <span class="tab-label">{TAB_LABELS[id]}</span>
         </button>
       {/each}
     </nav>
