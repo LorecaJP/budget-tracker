@@ -40,6 +40,58 @@
   })
   const yearTotal = $derived(rows.reduce((s, r) => s + r.amount, 0))
 
+  // ── 節約ウォッチ（減らしたい店を請求月ごとに見える化）。設定は localStorage に保持。──
+  type WatchGroup = { label: string; keywords: string[]; target: number | null }
+  const DEFAULT_WATCH: WatchGroup[] = [
+    { label: 'コンビニ', keywords: ['ファミリーマート', 'ﾌｱﾐﾘ-ﾏ-ﾄ', 'ローソン', 'ﾛ-ｿﾝ', 'セブン', 'ｾﾌﾞﾝ'], target: null },
+    { label: 'スタバ', keywords: ['ｽﾀ-ﾊﾞﾂｸｽ', 'スターバックス'], target: null },
+    { label: 'DMM', keywords: ['DMM'], target: null },
+  ]
+  function loadWatch(): WatchGroup[] {
+    try { const raw = localStorage.getItem('rk_watch'); if (raw) return JSON.parse(raw) } catch { /* noop */ }
+    return DEFAULT_WATCH
+  }
+  let watch = $state<WatchGroup[]>(loadWatch())
+  let editWatch = $state(false)
+  // 編集はキーワードを文字列で扱うドラフトで行う（配列に即変換すると入力中に「,」が消えて打てない）。
+  let draft = $state<{ label: string; kw: string; target: number | null }[]>([])
+  function openWatchEdit() {
+    draft = watch.map(g => ({ label: g.label, kw: g.keywords.join(', '), target: g.target }))
+    editWatch = true
+  }
+  function commitWatch() {
+    watch = draft
+      .map(d => ({ label: d.label.trim(), keywords: d.kw.split(',').map(s => s.trim()).filter(Boolean), target: d.target ?? null }))
+      .filter(g => g.label || g.keywords.length)
+    localStorage.setItem('rk_watch', JSON.stringify(watch))
+    editWatch = false
+  }
+
+  // 選択月の1つ前（chips は新しい順なので index+1）
+  const prevMonth = $derived.by(() => {
+    const i = months.indexOf(sel)
+    return i >= 0 && i + 1 < months.length ? months[i + 1] : ''
+  })
+  function groupSum(kw: string[], month: string) {
+    let total = 0, cnt = 0
+    for (const r of rows) {
+      if (r.statement_month !== month) continue
+      if (kw.some(k => k && r.merchant.includes(k))) { total += r.amount; cnt++ }
+    }
+    return { total, cnt }
+  }
+  const watchRows = $derived.by(() => watch.map(g => {
+    const cur = groupSum(g.keywords, sel)
+    const prev = prevMonth ? groupSum(g.keywords, prevMonth).total : null
+    let allTotal = 0
+    for (const r of rows) if (g.keywords.some(k => k && r.merchant.includes(k))) allTotal += r.amount
+    const avg = months.length ? Math.round(allTotal / months.length) : 0
+    return { label: g.label, target: g.target, cur: cur.total, cnt: cur.cnt, prev, delta: prev == null ? null : cur.total - prev, year: avg * 12 }
+  }))
+  const watchCur = $derived(watchRows.reduce((s, w) => s + w.cur, 0))
+  const watchPrev = $derived(watchRows.reduce((s, w) => s + (w.prev ?? 0), 0))
+  const watchYear = $derived(watchRows.reduce((s, w) => s + w.year, 0))
+
   async function load() {
     loading = true
     rows = await listRakutenTx()
@@ -82,6 +134,37 @@
       <div class="net-label">{sel.replace('-', '年')}月 ご請求</div>
       <div class="net neg">{yen(monthTotal)}</div>
     </section>
+
+    <div class="sec-head">節約ウォッチ<button class="link rkw-edit-btn" onclick={openWatchEdit}>編集</button></div>
+    {#if watchRows.length > 0}
+      <section class="card">
+        <div class="rkw-top">
+          <div>
+            <div class="rkw-top-label">{sel.slice(5)}月の合計</div>
+            <div class="rkw-top-amt">{yen(watchCur)}</div>
+          </div>
+          <div class="rkw-top-right">
+            {#if prevMonth}
+              <div class="rkw-delta {watchCur <= watchPrev ? 'rk-down' : 'rk-up'}">前月 {yen(watchPrev)} → {watchCur <= watchPrev ? '▼' : '▲'}{yen(Math.abs(watchCur - watchPrev))}</div>
+            {/if}
+            <div class="rk-avg">この調子で年 {yen(watchYear)}</div>
+          </div>
+        </div>
+        {#each watchRows as w (w.label)}
+          <div class="mb-row">
+            <div class="mb-head">
+              <span class="mb-name">{w.label} <span class="rk-avg">{w.cnt}回</span></span>
+              <span class="mb-num"><b>{yen(w.cur)}</b>{#if w.delta != null}<span class="rkw-d {w.delta <= 0 ? 'rk-down' : 'rk-up'}">{w.delta <= 0 ? '▼' : '▲'}{yen(Math.abs(w.delta))}</span>{/if}</span>
+            </div>
+            {#if w.target}
+              <div class="bp-track"><div class="bp-fill {w.cur > w.target ? 'over' : 'green'}" style="width:{Math.min(100, w.target > 0 ? (w.cur / w.target) * 100 : 0)}%"></div></div>
+              <div class="rk-avg">目標 {yen(w.target)} / {w.cur > w.target ? `${yen(w.cur - w.target)} 超過` : `残り ${yen(w.target - w.cur)}`}</div>
+            {/if}
+          </div>
+        {/each}
+        <p class="hint">減らしたい店の請求月ごとの合計。前月より減ると緑▼。「編集」で店や目標を変えられます。</p>
+      </section>
+    {/if}
 
     <div class="sec-head">カテゴリ別（タップで店明細／店をタップで分類変更）</div>
     <section class="card">
@@ -132,6 +215,26 @@
       {#each RAKUTEN_CATEGORIES as c}
         <button class="add-inline {c === editing.category ? 'rk-cur' : ''}" onclick={() => saveCat(c)}>{c}</button>
       {/each}
+    </div>
+  </div>
+{/if}
+
+{#if editWatch}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) commitWatch() }}>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="sheet-head"><button class="link" onclick={commitWatch}>閉じる</button><span class="sheet-title">節約ウォッチの編集</span><span></span></div>
+      <p class="hint">減らしたい店をグループで登録。キーワードは店名の一部（カンマ区切り、半角ｶﾅ/全角どちらもOK・複数可）。目標は1ヶ月あたりの上限（任意）。</p>
+      {#each draft as d, i (i)}
+        <section class="card rkw-edit">
+          <input class="rkw-in" placeholder="ラベル（例: コンビニ）" bind:value={d.label} />
+          <input class="rkw-in" placeholder="キーワード（例: ファミリーマート, ﾛ-ｿﾝ, セブン）" bind:value={d.kw} />
+          <input class="rkw-in" type="number" inputmode="numeric" placeholder="月の目標額（任意・円）" bind:value={d.target} />
+          <button class="link rkw-del" onclick={() => draft = draft.filter((_, j) => j !== i)}>このグループを削除</button>
+        </section>
+      {/each}
+      <button class="add-inline" onclick={() => draft = [...draft, { label: '', kw: '', target: null }]}>＋ グループを追加</button>
+      <button class="link" onclick={() => draft = DEFAULT_WATCH.map(g => ({ label: g.label, kw: g.keywords.join(', '), target: g.target }))}>既定（コンビニ/スタバ/DMM）に戻す</button>
     </div>
   </div>
 {/if}
