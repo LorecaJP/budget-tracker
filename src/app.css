@@ -309,3 +309,4 @@ button { font-family: inherit; cursor: pointer; }
 .pd-m { font-size: 10px; color: var(--muted); margin-top: 2px; }
 .pay-chip { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
 .pay-chip.confirmed { color: var(--accent); }
+.pay-chip.rec { color: var(--pos); }

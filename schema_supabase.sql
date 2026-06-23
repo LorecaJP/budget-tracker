@@ -121,7 +121,8 @@ create table if not exists scheduled_payments (
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name        text not null,
   amount      integer not null default 0,                       -- 確定額（円）
-  due_date    date not null,                                    -- 引落日
+  due_date    date,                                             -- 引落日（単発のとき）
+  due_day     integer check (due_day between 1 and 28),         -- 毎月くりかえしの引落日（休日は翌営業日へ補正して表示）
   account_id  uuid references accounts(id) on delete set null,  -- 引落口座
   category_id uuid references categories(id) on delete set null,
   status      text not null default 'planned' check (status in ('planned','confirmed','paid')),
@@ -131,6 +132,9 @@ create table if not exists scheduled_payments (
 create index if not exists idx_scheduled_due on scheduled_payments(user_id, due_date);
 alter table scheduled_payments enable row level security;
 create policy "own rows" on scheduled_payments for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- 既にこの表を作成済みの場合は、毎月くりかえし対応のため次を実行：
+--   alter table scheduled_payments add column if not exists due_day integer;
+--   alter table scheduled_payments alter column due_date drop not null;
 
 -- ---------- 設定（ユーザーごと1行） ----------
 create table settings (
