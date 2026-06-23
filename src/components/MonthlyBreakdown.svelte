@@ -66,6 +66,7 @@
   const expenseAct = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.actSum ?? 0), 0))
   const expensePlan = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.planSum ?? 0), 0))
   const netAct = $derived(incomeAct - expenseAct)
+  const planNet = $derived(incomeAct - expensePlan)   // 予定どおりなら残りはいくら（実績との差＝イレギュラー分）
 
   async function load() {
     loading = true
@@ -98,8 +99,9 @@
   <p class="state">集計中…</p>
 {:else}
   <section class="summary">
-    <div class="net-label">今月の収支</div>
+    <div class="net-label">今月の残り</div>
     <div class="net {netAct >= 0 ? 'pos' : 'neg'}">{netAct >= 0 ? '+' : '−'}{yen(Math.abs(netAct))}</div>
+    <div class="net-sub">予定どおりなら {planNet >= 0 ? '+' : '−'}{yen(Math.abs(planNet))}</div>
     <div class="io io-3">
       <div class="io-cell"><span class="io-label">収入</span><span class="io-val pos">{yen(incomeAct)}</span></div>
       <div class="io-cell"><span class="io-label">支出</span><span class="io-val neg">{yen(expenseAct)}</span></div>

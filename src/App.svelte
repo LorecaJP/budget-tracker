@@ -47,7 +47,7 @@
     { id: 'home', label: 'ホーム' },
     { id: 'tx', label: '取引' },
     { id: 'analysis', label: '分析' },
-    { id: 'year', label: '収支' },
+    { id: 'year', label: '年間' },
     { id: 'pay', label: '支払い' },
     { id: 'special', label: '特別費' },
     { id: 'fuyou', label: '扶養' },
