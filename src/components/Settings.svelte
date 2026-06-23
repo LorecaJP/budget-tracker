@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { supabase } from '../lib/supabase'
   import { session } from '../lib/session'
-  import { budgetMonthOf, budgetMonthRange, periodKey, ymd, yen, getMonthStartDay, setMonthStartDay } from '../lib/month'
+  import { budgetMonthOf, budgetMonthRange, shiftBudgetMonth, periodKey, ymd, yen, getMonthStartDay, setMonthStartDay } from '../lib/month'
   import {
     listAccounts, listCategories, upsertAccount, archiveAccount, upsertCategory, archiveCategory,
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
@@ -91,24 +91,40 @@
     accEdit = null; reload()
   }
 
-  // --- 予算 ---
+  // --- 予算（予定額）。月を切り替え、収入も含め任意の月に入れられる（先の月の試算用） ---
   const bm = budgetMonthOf(new Date())
-  const pk = periodKey(bm.year, bm.month)
+  let bYear = $state(bm.year)
+  let bMonth = $state(bm.month)
+  const pk = $derived(periodKey(bYear, bMonth))
   let budgets = $state<Record<string, number>>({})
   let budgetLoaded = $state(false)
-  let applyAllMonths = $state(true)   // 既定：入れた額をその年の12ヶ月すべてに適用（固定費向け）
+  let applyAllMonths = $state(true)   // 既定：入れた額をその年の12ヶ月すべてに適用（給料・固定費向け）
   async function loadBudgets() {
     const list = await listBudgets(pk)
     budgets = Object.fromEntries(list.map(b => [b.category_id, b.amount]))
     budgetLoaded = true
   }
+  function goBudget(delta: number) {
+    const m = shiftBudgetMonth(bYear, bMonth, delta)
+    bYear = m.year; bMonth = m.month; loadBudgets()
+  }
   async function saveBudget(catId: string, val: number) {
     const amount = Math.round(val || 0)
-    if (applyAllMonths) await setBudgetAllMonths(catId, bm.year, amount, $session!.user.id)
+    if (applyAllMonths) await setBudgetAllMonths(catId, bYear, amount, $session!.user.id)
     else await setBudget(catId, pk, amount, $session!.user.id)
     budgets[catId] = amount
   }
   $effect(() => { if (tab === 'budget' && !budgetLoaded) loadBudgets() })
+  // 予定額を入れられる区分（収入＋固定費＋変動費）を区分ごとにまとめる
+  const BUDGET_DIVS: Division[] = ['income', 'fixed', 'variable']
+  const budgetCatsByDiv = $derived.by(() => {
+    const m: Record<string, Category[]> = {}
+    for (const c of categories) {
+      if (c.archived || !BUDGET_DIVS.includes(c.division)) continue
+      (m[c.division] ??= []).push(c)
+    }
+    return m
+  })
 
   // --- 定期 ---
   let recurring = $state<Recurring[]>([])
@@ -221,18 +237,28 @@
     <button class="add-inline" onclick={newAcc}>＋ 口座を追加</button>
 
   {:else if tab === 'budget'}
-    <label class="check"><input type="checkbox" bind:checked={applyAllMonths} /> {bm.year}年の12ヶ月すべてに同額を設定（固定費向け）</label>
+    <div class="month-nav">
+      <button class="nav-btn" onclick={() => goBudget(-1)} aria-label="前の月">‹</button>
+      <span class="month-title">{bYear}年{bMonth}月の予定</span>
+      <button class="nav-btn" onclick={() => goBudget(1)} aria-label="次の月">›</button>
+    </div>
+    <label class="check"><input type="checkbox" bind:checked={applyAllMonths} /> 入れた額を {bYear}年の12ヶ月すべてに同額で設定</label>
     <p class="hint">
-      {#if applyAllMonths}入れた額を {bm.year}年の1〜12月すべてに適用します（後から月単位で上書き可）。{:else}{bm.year}年{bm.month}月だけに設定します。{/if}
-      この予定額は「収支」タブ（月次・年間）に表示され、実績が入ると置き換わります。
+      {#if applyAllMonths}給料・固定費向け：{bYear}年の1〜12月へ一括（後から月単位で上書き可）。{:else}この月（{bYear}年{bMonth}月）だけに設定。ボーナスや臨時の予測はこちら。{/if}
+      予定額はホーム（今月の見込み）と「年間」に出ます。先の月を選べば3〜6ヶ月先の試算もできます。
     </p>
     {#if budgetLoaded}
-      {#each categories.filter(c => !c.archived && (c.division === 'fixed' || c.division === 'variable')) as c (c.id)}
-        <div class="budget-row">
-          <span class="tx-name">{c.name}</span>
-          <input class="budget-input" type="number" inputmode="numeric" value={budgets[c.id] ?? ''} placeholder="0"
-            onchange={(e) => saveBudget(c.id, +(e.currentTarget as HTMLInputElement).value)} />
-        </div>
+      {#each BUDGET_DIVS as d}
+        {#if (budgetCatsByDiv[d] ?? []).length}
+          <div class="day-head"><span>{DIVISION_LABELS[d]}</span></div>
+          {#each budgetCatsByDiv[d] as c (c.id)}
+            <div class="budget-row">
+              <span class="tx-name">{c.name}</span>
+              <input class="budget-input" type="number" inputmode="numeric" value={budgets[c.id] ?? ''} placeholder="0"
+                onchange={(e) => saveBudget(c.id, +(e.currentTarget as HTMLInputElement).value)} />
+            </div>
+          {/each}
+        {/if}
       {/each}
     {:else}<p class="state">読み込み中…</p>{/if}
 
