@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { budgetMonthOf, budgetMonthRange, shiftBudgetMonth, periodKey, ymd, yen } from '../lib/month'
-  import { listTransactions, listCategories, listBudgets, setBudget, setBudgetAllMonths, type Budget } from '../lib/db'
+  import { listTransactions, listCategories, listBudgets, setBudget, setBudgetAllMonths, listSpecialExpenses, type Budget, type SpecialExpense } from '../lib/db'
   import { session } from '../lib/session'
   import type { Transaction, Category, Division } from '../lib/types'
   import { DIVISION_LABELS } from '../lib/types'
@@ -16,6 +16,7 @@
   let txs = $state<Transaction[]>([])
   let cats = $state<Record<string, Category>>({})
   let budgets = $state<Record<string, number>>({})   // category_id -> 予定額
+  let specials = $state<SpecialExpense[]>([])         // この年の特別費（臨時支出）
   let loading = $state(true)
 
   interface Row { id: string | null; name: string; actual: number; plan: number }
@@ -64,11 +65,16 @@
 
   const blockOf = (d: Division) => model.find(b => b.div === d)
   const incomeAct = $derived(blockOf('income')?.actSum ?? 0)
-  const expenseAct = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.actSum ?? 0), 0))
+  // 特別費（この月の臨時支出）。実績(actual)優先・無ければ予定(budget)。支出に含める。
+  const specialItems = $derived(specials.filter(s => s.planned_month === month))
+  const specialAct = $derived(specialItems.reduce((s, x) => s + (x.actual_amount ?? 0), 0))
+  const specialFore = $derived(specialItems.reduce((s, x) => s + (x.actual_amount ?? x.budget_amount), 0))
+  const specialPlanSum = $derived(specialItems.reduce((s, x) => s + x.budget_amount, 0))
+  const expenseAct = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.actSum ?? 0), 0) + specialAct)
   const netAct = $derived(incomeAct - expenseAct)
   // 見込み＝実績があれば実績・無ければ予定（先の月は全部予定＝試算になる）
   const incomeFore = $derived(blockOf('income')?.foreSum ?? 0)
-  const expenseFore = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.foreSum ?? 0), 0))
+  const expenseFore = $derived(EXPENSE_DIVS.reduce((s, d) => s + (blockOf(d)?.foreSum ?? 0), 0) + specialFore)
   const foreNet = $derived(incomeFore - expenseFore)
 
   async function load() {
@@ -81,6 +87,7 @@
     txs = await listTransactions(ymd(r.start), ymd(r.end))
     const bl: Budget[] = await listBudgets(periodKey(year, month))
     budgets = Object.fromEntries(bl.map(b => [b.category_id, b.amount]))
+    specials = await listSpecialExpenses(year)
     loading = false
   }
   onMount(load)
@@ -149,7 +156,22 @@
     </section>
   {/each}
 
-  <p class="hint">実績は取引の合計、「/」の後は予定（予算）。<strong>費目をタップするとこの月の予定額を編集</strong>できます。振替は含めません。</p>
+  {#if specialItems.length}
+    <div class="sec-head">特別費（今月の臨時）<span class="sh-sum">{yen(specialAct)}{specialPlanSum ? ` / 予定 ${yen(specialPlanSum)}` : ''}</span></div>
+    <section class="card">
+      {#each specialItems as s (s.id)}
+        {@const over = s.actual_amount != null && s.actual_amount > s.budget_amount}
+        <div class="mb-row">
+          <div class="mb-head">
+            <span class="mb-name">{s.name}</span>
+            <span class="mb-num"><b class={over ? 'neg' : ''}>{yen(s.actual_amount ?? 0)}</b> / {yen(s.budget_amount)}</span>
+          </div>
+        </div>
+      {/each}
+    </section>
+  {/if}
+
+  <p class="hint">実績は取引の合計、「/」の後は予定（予算）。<strong>費目をタップするとこの月の予定額を編集</strong>できます（特別費は「特別費」タブで編集）。特別費も見込みに含みます。振替は含めません。</p>
 {/if}
 
 {#if editing}
