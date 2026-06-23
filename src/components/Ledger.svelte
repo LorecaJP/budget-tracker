@@ -1,20 +1,9 @@
 <script lang="ts">
-  import MonthlyBreakdown from './MonthlyBreakdown.svelte'
+  // 「年間」タブ＝費目×12予算月のマトリクス。月次の内訳はホームに移したのでここは年間専用。
   import YearSummary from './YearSummary.svelte'
-
-  let mode = $state<'month' | 'year'>('month')
 </script>
 
 <div class="screen">
-  <h1 class="lg-title">収支</h1>
-  <div class="seg seg-wide ledger-seg">
-    <button class:active={mode === 'month'} onclick={() => mode = 'month'}>月次</button>
-    <button class:active={mode === 'year'} onclick={() => mode = 'year'}>年間</button>
-  </div>
-
-  {#if mode === 'month'}
-    <MonthlyBreakdown />
-  {:else}
-    <YearSummary />
-  {/if}
+  <h1 class="lg-title">年間</h1>
+  <YearSummary />
 </div>
