@@ -78,8 +78,11 @@ export function parseRakuten(rows: string[], fullText: string): ParsedRakuten {
   for (const raw of rows) {
     const m = raw.trim().match(ROW)
     if (!m) continue
-    // 支払方法（◯回払い等）に数字が含まれるので「払い」の後ろから金額を拾う
-    const rest = m[6].includes('払い') ? m[6].split('払い').slice(1).join('払い') : m[6]
+    // 支払方法（◯回払い/リボ払い等）の「回数」に数字が含まれるので除去してから金額を拾う。
+    // 行復元の崩れで「払い」がこの明細行に入らず「1回」だけ残ることがあり、その場合「払い」
+    // 分割では回数の「1」を金額に拾ってしまう（例: APPLE COM BILL の 1,645 が 1 になる）。
+    // 「N回」を消すことで、払いが別行に分離しても安全に 利用金額 を拾える。
+    const rest = m[6].replace(/[0-9０-９]+\s*回/g, '')
     const nums = rest.match(/[\d,]+/g)
     if (!nums) continue
     const amount = parseInt(nums[0].replace(/[,，]/g, ''), 10)
