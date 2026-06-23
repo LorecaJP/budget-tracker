@@ -1,6 +1,31 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { VitePWA } from 'vite-plugin-pwa'
+import { cpSync, readFileSync } from 'node:fs'
+
+// 日本語PDF（楽天カード明細など）のテキスト抽出に必要な pdf.js の CMap を配信する。
+// 渡さないと CID フォントが解決できずテキストが空になる（楽天明細が読めない）。
+// ビルド時に dist/cmaps へコピー、開発時は /cmaps/ で配信する。
+const CMAPS_SRC = 'node_modules/pdfjs-dist/cmaps'
+const pdfCmaps: Plugin = {
+  name: 'pdfjs-cmaps',
+  apply: 'build',
+  closeBundle() { cpSync(CMAPS_SRC, 'dist/cmaps', { recursive: true }) },
+}
+const pdfCmapsDev: Plugin = {
+  name: 'pdfjs-cmaps-dev',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use('/cmaps', (req, res, next) => {
+      try {
+        const name = (req.url ?? '').split('?')[0].replace(/^\//, '')
+        if (!/^[\w.-]+$/.test(name)) return next()
+        res.setHeader('Content-Type', 'application/octet-stream')
+        res.end(readFileSync(`${CMAPS_SRC}/${name}`))
+      } catch { next() }
+    })
+  },
+}
 
 // GitHub Pages のプロジェクトページ（username.github.io/<repo>/）で配信する場合、
 // base をリポジトリ名に合わせる。リポジトリ名を変えたらここも変更する。
@@ -11,6 +36,8 @@ export default defineConfig({
   base,
   plugins: [
     svelte(),
+    pdfCmaps,
+    pdfCmapsDev,
     VitePWA({
       registerType: 'autoUpdate',          // 新バージョン配信時に自動更新
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],

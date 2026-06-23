@@ -28,10 +28,15 @@ export interface ExtractResult {
   hasTextLayer: boolean   // テキスト層があるか（false ならスキャン画像＝OCRが必要）
 }
 
+// 日本語PDF（CIDフォント）のテキスト抽出には CMap が必須。vite-plugin-static-copy で
+// dist/cmaps/ に配信し、base path 付きで渡す（渡さないと半角ｶﾅ等が空になる＝楽天明細が読めない）。
+const CMAP_URL = `${import.meta.env.BASE_URL}cmaps/`
+const PDF_OPTS = { cMapUrl: CMAP_URL, cMapPacked: true }
+
 // PDF の1ページ目からテキストを抽出する。
 export async function extractPdfText(file: File): Promise<ExtractResult> {
   const data = new Uint8Array(await file.arrayBuffer())
-  const task = pdfjs.getDocument({ data })
+  const task = pdfjs.getDocument({ data, ...PDF_OPTS })
   try {
     const doc = await task.promise
     const page = await doc.getPage(1)
@@ -48,7 +53,7 @@ export async function extractPdfText(file: File): Promise<ExtractResult> {
 // 同じ行の断片を X 順に連結し、視覚的な行を組み立てる。
 export async function extractPdfRows(file: File): Promise<{ rows: string[]; text: string }> {
   const data = new Uint8Array(await file.arrayBuffer())
-  const task = pdfjs.getDocument({ data })
+  const task = pdfjs.getDocument({ data, ...PDF_OPTS })
   try {
     const doc = await task.promise
     const rows: string[] = []
@@ -81,7 +86,7 @@ export async function extractPdfRows(file: File): Promise<{ rows: string[]; text
 // (1) 大きい元PDFは目標幅へ縮小し、(2) JPEG で出力、(3) 4MB未満に収まるよう品質を自動調整する。
 export async function renderPdfFirstPage(file: File, targetWidth = 2200): Promise<Blob> {
   const data = new Uint8Array(await file.arrayBuffer())
-  const task = pdfjs.getDocument({ data })
+  const task = pdfjs.getDocument({ data, ...PDF_OPTS })
   try {
     const doc = await task.promise
     const page = await doc.getPage(1)

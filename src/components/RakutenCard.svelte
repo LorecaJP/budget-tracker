@@ -58,13 +58,20 @@
 
 <div class="screen">
   <h1 class="lg-title">楽天カード</h1>
-  <button class="add-inline" onclick={() => showImport = true}>📄 利用明細PDFを取り込む</button>
 
   {#if loading}
     <p class="state">読み込み中…</p>
   {:else if rows.length === 0}
-    <p class="state">まだ明細がありません。楽天e-NAVIの「ご利用代金請求明細書（PDF）」を上のボタンから取り込みましょう。</p>
+    <div class="rk-empty">
+      <div class="rk-empty-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg>
+      </div>
+      <p class="rk-empty-title">まだ明細がありません</p>
+      <p class="rk-empty-sub">楽天e-NAVIの「ご利用代金請求明細書（PDF）」を取り込むと、何にいくら使ったかをカテゴリ別・月別・年間で見られます。</p>
+      <button class="primary rk-empty-btn" onclick={() => showImport = true}>明細PDFを取り込む</button>
+    </div>
   {:else}
+    <button class="add-inline" onclick={() => showImport = true}>📄 利用明細PDFを取り込む</button>
     <div class="rk-months">
       {#each months as m}
         <button class="rk-chip {m === sel ? 'active' : ''}" onclick={() => sel = m}>{m.slice(5)}月</button>
