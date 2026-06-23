@@ -112,6 +112,26 @@ create table special_expenses (
   created_at     timestamptz not null default now()
 );
 
+-- ---------- 支払い予定（引落の事前把握・キャッシュ準備用・後から追加した表） ----------
+-- 請求額が確定してから引き落とされるまでの間に「いつ・どの口座に・いくら要るか」を把握する。
+-- status: planned=予定(見込み) / confirmed=確定 / paid=支払済（必要額の集計から外れる）。
+-- 既存DBには下記をそのまま実行（未作成でもアプリは動く＝支払いタブは空表示・追加時のみ要作成）。
+create table if not exists scheduled_payments (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name        text not null,
+  amount      integer not null default 0,                       -- 確定額（円）
+  due_date    date not null,                                    -- 引落日
+  account_id  uuid references accounts(id) on delete set null,  -- 引落口座
+  category_id uuid references categories(id) on delete set null,
+  status      text not null default 'planned' check (status in ('planned','confirmed','paid')),
+  memo        text not null default '',
+  created_at  timestamptz not null default now()
+);
+create index if not exists idx_scheduled_due on scheduled_payments(user_id, due_date);
+alter table scheduled_payments enable row level security;
+create policy "own rows" on scheduled_payments for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ---------- 設定（ユーザーごと1行） ----------
 create table settings (
   user_id         uuid primary key default auth.uid() references auth.users(id) on delete cascade,

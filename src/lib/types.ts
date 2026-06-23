@@ -3,6 +3,7 @@ export type AccountType = 'cash' | 'bank' | 'credit' | 'emoney'
 export type Division = 'income' | 'tax' | 'saving' | 'fixed' | 'variable'
 export type TxType = 'expense' | 'income' | 'transfer'
 export type TxSource = 'manual' | 'recurring' | 'csv' | 'ocr'
+export type ScheduledStatus = 'planned' | 'confirmed' | 'paid'   // 予定 / 確定 / 支払済
 
 export interface Account {
   id: string
@@ -40,6 +41,17 @@ export interface Transaction {
   source: TxSource
   needs_review: boolean
   created_at: string
+}
+
+export interface ScheduledPayment {
+  id: string
+  name: string
+  amount: number          // 確定額・円・整数
+  due_date: string        // 'YYYY-MM-DD' 引落日
+  account_id: string | null   // 引落口座
+  category_id: string | null
+  status: ScheduledStatus
+  memo: string
 }
 
 export const DIVISION_LABELS: Record<Division, string> = {

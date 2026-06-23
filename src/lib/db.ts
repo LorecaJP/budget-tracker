@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Account, Category, Transaction, Division, TxType } from './types'
+import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus } from './types'
 
 // ---------- 取得 ----------
 export async function listAccounts(includeArchived = false): Promise<Account[]> {
@@ -247,6 +247,31 @@ export async function listPayslipDetails(year: number, person = 'えみ'): Promi
     .eq('person', person).gte('pay_date', `${year}-01-01`).lt('pay_date', `${year + 1}-01-01`)
   if (error || !data) return []   // テーブル未作成なら空
   return data as PayslipDetail[]
+}
+
+// ---------- 支払い予定（引落の事前把握・キャッシュ準備用） ----------
+// テーブル scheduled_payments が未作成でも、取得は空配列にフォールバックして既存どおり動く。
+export interface ScheduledInput {
+  name: string; amount: number; due_date: string
+  account_id: string | null; category_id: string | null
+  status?: ScheduledStatus; memo?: string
+}
+export async function listScheduledPayments(includePaid = false): Promise<ScheduledPayment[]> {
+  let q = supabase.from('scheduled_payments').select('*').order('due_date')
+  if (!includePaid) q = q.neq('status', 'paid')
+  const { data, error } = await q
+  if (error || !data) return []   // 未作成でも動く
+  return data as ScheduledPayment[]
+}
+export async function upsertScheduledPayment(p: Partial<ScheduledPayment> & { id?: string; user_id?: string }) {
+  if (p.id) return supabase.from('scheduled_payments').update(p).eq('id', p.id)
+  return supabase.from('scheduled_payments').insert(p)
+}
+export async function deleteScheduledPayment(id: string) {
+  return supabase.from('scheduled_payments').delete().eq('id', id)
+}
+export async function setScheduledStatus(id: string, status: ScheduledStatus) {
+  return supabase.from('scheduled_payments').update({ status }).eq('id', id)
 }
 
 // 給与明細の再取込時、同じ明細で前回登録した取引（収入＋控除）を置き換えるために削除する。
