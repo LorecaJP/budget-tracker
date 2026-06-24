@@ -21,7 +21,7 @@
 
 <div class="auth-wrap">
   <div class="auth-card">
-    <h1 class="auth-title">家計簿</h1>
+    <h1 class="auth-title">yutori</h1>
     <p class="auth-sub">{mode === 'in' ? 'サインイン' : 'アカウント作成'}</p>
 
     <label class="field">

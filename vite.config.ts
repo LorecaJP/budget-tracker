@@ -42,14 +42,14 @@ export default defineConfig({
       registerType: 'autoUpdate',          // 新バージョン配信時に自動更新
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: '家計簿',
-        short_name: '家計簿',
-        description: '個人用の家計簿アプリ（収支・予算・給与明細取込）',
+        name: 'yutori',
+        short_name: 'yutori',
+        description: 'yutori — 個人用の家計簿（収支・予算・給与明細取込）',
         lang: 'ja',
         dir: 'ltr',
         display: 'standalone',
-        background_color: '#FBFAF7',
-        theme_color: '#1F6F58',
+        background_color: '#F7ECDA',
+        theme_color: '#7E9466',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
