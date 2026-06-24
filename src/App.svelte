@@ -77,7 +77,7 @@
 {:else}
   <div class="app">
     <header class="topbar">
-      <span class="brand">家計簿</span>
+      <span class="brand">yutori</span>
       <button class="link" onclick={() => supabase.auth.signOut()}>サインアウト</button>
     </header>
 
