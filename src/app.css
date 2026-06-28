@@ -133,7 +133,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 13px 20px; font-size: 15px; font-weight: 700; z-index: 7;
 }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; justify-content: center; z-index: 10; }
-.sheet { width: 100%; max-width: var(--maxw); background: var(--sheet-bg);
+.sheet { width: 100%; min-width: 0; max-width: var(--maxw); background: var(--sheet-bg);
   -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
   border-top: 1px solid var(--glass-edge); border-radius: 22px 22px 0 0; padding: 8px 16px 24px;
   max-height: 92vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
@@ -349,10 +349,29 @@ button { font-family: inherit; cursor: pointer; }
 /* シフト・見込み（扶養タブ内 ShiftPlanner） */
 .sp-lead { font-size: 13px; color: var(--muted); line-height: 1.65; margin: 0 2px 12px; }
 .sp-add { width: 100%; }
-.shift-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.9fr; gap: 8px; margin: 6px 0 2px; }
-.shift-form .field { gap: 4px; }
-.shift-form .field span { font-size: 12px; color: var(--muted); }
-.sp-actions { display: flex; gap: 12px; align-items: center; margin: 10px 0 2px; }
+/* シフトカレンダー（ShiftCalendar・ボトムシート） */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 12px; }
+.cal-title { font-size: 17px; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal-wd { text-align: center; font-size: 11px; color: var(--muted); padding: 2px 0 4px; }
+.cal-day { height: 52px; min-width: 0; border: none; border-radius: 11px; background: var(--surface-2); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer; }
+.cal-day.empty { background: transparent; cursor: default; }
+.cal-day.has { background: var(--accent); color: #fff; }
+.cal-day.sel { outline: 2.5px solid var(--text); outline-offset: 1px; }
+.cal-dnum { font-size: 14px; font-weight: 600; line-height: 1; }
+.cal-dh { font-size: 10px; opacity: .92; line-height: 1; }
+.cal-sun { color: var(--neg); }
+.cal-sat { color: #3b82f6; }
+.cal-edit { margin-top: 16px; padding: 14px; background: var(--surface-2); border-radius: 14px; }
+.cal-edit-head { font-weight: 700; margin-bottom: 10px; }
+.cal-times { display: flex; flex-direction: column; gap: 12px; }
+.cal-break { margin-top: 12px; display: block; }
+.cal-edit-actions { display: flex; gap: 14px; align-items: center; margin-top: 14px; }
+.cal-eh { margin-left: auto; font-weight: 700; color: var(--muted); }
+.cal-hint { margin: 16px 2px 4px; }
+.cal-total { margin-top: 16px; font-weight: 600; }
+.cal-times .field, .cal-break { min-width: 0; }
+.cal-edit input { width: 100%; min-width: 0; box-sizing: border-box; }
 .sp-row { cursor: pointer; }
 .sp-tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 7px; vertical-align: middle; }
 .sp-tag.est { background: var(--surface-2); color: var(--accent); }
