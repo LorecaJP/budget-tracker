@@ -1,9 +1,9 @@
 <script lang="ts">
-  // 月カレンダー（ボトムシート）。日付をタップして 1 日ずつシフトを登録/編集/削除する。
-  // 1 日 1 シフト（その日の最初のシフトを編集対象にする）。保存/削除のたびに onchange で親へ通知。
+  // 月カレンダー（ボトムシート）。日付をタップして 1 日 1 シフトを登録/編集/削除。
+  // 休憩は「労働(開始〜終了)が6時間超のときだけ自動90分／ちょうど6時間以下は休憩なし」。
   import { listShifts, upsertShift, deleteShift, type Shift } from '../lib/db'
 
-  let { wage, onclose, onchange }: { wage: number; onclose: () => void; onchange: () => void } = $props()
+  let { onclose, onchange }: { onclose: () => void; onchange: () => void } = $props()
 
   const now = new Date()
   let y = $state(now.getFullYear())
@@ -12,7 +12,6 @@
   let sel = $state<string | null>(null)
   let eStart = $state('09:00')
   let eEnd = $state('17:00')
-  let eBreak = $state(60)
   let eId = $state<string | undefined>(undefined)
   let busy = $state(false)
 
@@ -20,8 +19,13 @@
   const pad = (n: number) => String(n).padStart(2, '0')
   function toMin(t: string) { const [h, mm] = (t || '').split(':').map(Number); return (h || 0) * 60 + (mm || 0) }
   function minHHMM(v: number) { return `${pad(Math.floor(v / 60))}:${pad(v % 60)}` }
-  function hoursOf(s: Shift) { return Math.max(0, (s.end_min - s.start_min) - (s.break_min ?? 0)) / 60 }
+  // 休憩：労働(開始〜終了)が6時間(360分)を超えたら90分、ちょうど6時間以下は休憩なし。
+  function breakFor(grossMin: number) { return grossMin > 360 ? 90 : 0 }
   function fmtH(h: number) { return h.toFixed(1).replace(/\.0$/, '') }
+
+  const grossMin = $derived(toMin(eEnd) - toMin(eStart))
+  const autoBreak = $derived(breakFor(grossMin))
+  const netH = $derived(Math.max(0, (grossMin - autoBreak) / 60))
 
   async function load() {
     const start = `${y}-${pad(m)}-01`
@@ -29,6 +33,13 @@
     shifts = await listShifts(start, end)
   }
   $effect(() => { void y; void m; load() })
+
+  // モーダル表示中は背景（扶養ページ）をスクロールさせない
+  $effect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  })
 
   const cells = $derived.by(() => {
     const first = new Date(y, m - 1, 1).getDay()
@@ -41,8 +52,7 @@
     }
     return arr
   })
-  const monthHours = $derived(shifts.reduce((s, sh) => s + hoursOf(sh), 0))
-  const editH = $derived(Math.max(0, (toMin(eEnd) - toMin(eStart) - (eBreak || 0)) / 60))
+  const monthHours = $derived(shifts.reduce((s, sh) => s + Math.max(0, ((sh.end_min - sh.start_min) - (sh.break_min ?? 0)) / 60), 0))
 
   function go(delta: number) {
     const idx = (y * 12 + (m - 1)) + delta
@@ -50,15 +60,15 @@
   }
   function pick(date: string, shift?: Shift) {
     sel = date
-    if (shift) { eId = shift.id; eStart = minHHMM(shift.start_min); eEnd = minHHMM(shift.end_min); eBreak = shift.break_min ?? 0 }
-    else { eId = undefined; eStart = '09:00'; eEnd = '17:00'; eBreak = 60 }
+    if (shift) { eId = shift.id; eStart = minHHMM(shift.start_min); eEnd = minHHMM(shift.end_min) }
+    else { eId = undefined; eStart = '09:00'; eEnd = '17:00' }
   }
   async function save() {
     if (!sel) return
     const sm = toMin(eStart), em = toMin(eEnd)
     if (em <= sm) return
     busy = true
-    await upsertShift({ id: eId, work_date: sel, start_min: sm, end_min: em, break_min: Math.max(0, eBreak || 0), memo: '' })
+    await upsertShift({ id: eId, work_date: sel, start_min: sm, end_min: em, break_min: breakFor(em - sm), memo: '' })
     await load(); onchange()
     eId = shifts.find(s => s.work_date === sel)?.id
     busy = false
@@ -95,7 +105,7 @@
         {#if c}
           <button class="cal-day {c.shift ? 'has' : ''} {sel === c.date ? 'sel' : ''}" onclick={() => pick(c.date, c.shift)}>
             <span class="cal-dnum">{c.d}</span>
-            {#if c.shift}<span class="cal-dh">{fmtH(hoursOf(c.shift))}h</span>{/if}
+            {#if c.shift}<span class="cal-dh">{fmtH(Math.max(0, ((c.shift.end_min - c.shift.start_min) - (c.shift.break_min ?? 0)) / 60))}h</span>{/if}
           </button>
         {:else}
           <span class="cal-day empty"></span>
@@ -110,15 +120,14 @@
           <label class="field"><span>開始</span><input type="time" bind:value={eStart} /></label>
           <label class="field"><span>終了</span><input type="time" bind:value={eEnd} /></label>
         </div>
-        <label class="field cal-break"><span>休憩（分）</span><input type="number" min="0" step="5" bind:value={eBreak} /></label>
+        <div class="cal-note">実働 {fmtH(netH)}h ・ {autoBreak > 0 ? `休憩${autoBreak}分（6時間超で自動）` : '休憩なし'}</div>
         <div class="cal-edit-actions">
           <button class="primary" onclick={save} disabled={busy}>{busy ? '保存中…' : '保存'}</button>
           {#if eId}<button class="link neg" onclick={remove} disabled={busy}>削除</button>{/if}
-          <span class="cal-eh">{fmtH(editH)}h</span>
         </div>
       </div>
     {:else}
-      <p class="hint cal-hint">日付をタップしてシフトを登録できます。登録した分は「見込み」に反映されます。</p>
+      <p class="hint cal-hint">日付をタップしてシフトを登録できます。</p>
     {/if}
 
     <div class="fy-kv cal-total"><span class="k">{m}月の合計シフト時間</span><span class="v">{fmtH(monthHours)}時間</span></div>

@@ -101,5 +101,5 @@
 </section>
 
 {#if calOpen}
-  <ShiftCalendar {wage} onclose={() => (calOpen = false)} onchange={load} />
+  <ShiftCalendar onclose={() => (calOpen = false)} onchange={load} />
 {/if}
