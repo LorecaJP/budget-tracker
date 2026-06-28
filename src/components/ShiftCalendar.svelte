@@ -2,6 +2,7 @@
   // 月カレンダー（ボトムシート）。日付をタップして 1 日 1 シフトを登録/編集/削除。
   // 休憩は「労働(開始〜終了)が6時間超のときだけ自動90分／ちょうど6時間以下は休憩なし」。
   import { listShifts, upsertShift, deleteShift, type Shift } from '../lib/db'
+  import { openIcs } from '../lib/ics'
 
   let { onclose, onchange }: { onclose: () => void; onchange: () => void } = $props()
 
@@ -85,6 +86,15 @@
     await load(); onchange(); sel = null
     busy = false
   }
+
+  // この月のシフトを .ics にして iPhone純正カレンダーへ（iOSの「カレンダーに追加」が起動）
+  let addMsg = $state('')
+  function addToCalendar() {
+    const list = shifts.filter(s => s.id).map(s => ({ id: s.id!, work_date: s.work_date, start_min: s.start_min, end_min: s.end_min }))
+    if (!list.length) { addMsg = 'この月のシフトがありません'; return }
+    openIcs(list, `yutori-${y}-${pad(m)}.ics`)
+    addMsg = 'iOSの「カレンダーに追加」が開きます →「すべて追加」を押してください。'
+  }
 </script>
 
 <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
@@ -140,5 +150,9 @@
     {/if}
 
     <div class="fy-kv cal-total"><span class="k">{m}月の合計シフト時間</span><span class="v">{fmtH(monthHours)}時間</span></div>
+    {#if shifts.length > 0}
+      <button class="cal-add" onclick={addToCalendar}>📅 この月をiPhoneカレンダーに追加</button>
+      {#if addMsg}<p class="cal-addmsg">{addMsg}</p>{/if}
+    {/if}
   </div>
 </div>
