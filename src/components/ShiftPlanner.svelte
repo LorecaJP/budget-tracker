@@ -3,6 +3,7 @@
   // 支給月 p の見込みは work-month(p-1) のシフトから算出。実給与が入った月は見込みを0（二重計上回避）。
   import { yen } from '../lib/month'
   import { listShifts, listFuyouOverrides, setFuyouOverride, type Shift, type FuyouOverride } from '../lib/db'
+  import { syncShifts, gcalConfigured } from '../lib/gcal'
   import ShiftCalendar from './ShiftCalendar.svelte'
 
   let { year, wage, received, onestimate }: {
@@ -50,6 +51,24 @@
   function startEdit(wm: string, cur: number) { editM = wm; editVal = cur }
   async function saveOverride(wm: string) { await setFuyouOverride(wm, editVal); editM = null; await load() }
   async function clearOverride(wm: string) { await setFuyouOverride(wm, null); editM = null; await load() }
+
+  // Googleカレンダーへ同期（方式2）。Client ID 設定後に有効。
+  let syncing = $state(false)
+  let syncMsg = $state('')
+  async function syncGcal() {
+    const list = shifts.filter(s => s.id).map(s => ({ id: s.id!, work_date: s.work_date, start_min: s.start_min, end_min: s.end_min }))
+    if (!list.length) { syncMsg = '登録するシフトがありません'; return }
+    if (!gcalConfigured()) { syncMsg = 'Google連携は設定後に使えます（準備中）'; return }
+    syncing = true; syncMsg = ''
+    try {
+      const { ok } = await syncShifts(list)
+      syncMsg = `${ok}件 Googleカレンダーに登録しました`
+    } catch (e: any) {
+      syncMsg = '登録に失敗：' + (e?.message ?? e)
+    } finally {
+      syncing = false
+    }
+  }
 </script>
 
 <section class="card">
@@ -97,6 +116,11 @@
       {/each}
     </ul>
     <div class="fy-kv sp-total"><span class="k">見込み合計（未受給ぶん）</span><span class="v">{yen(estimateTotal)}</span></div>
+  {/if}
+
+  {#if !loading && shifts.length > 0}
+    <button class="sp-sync" onclick={syncGcal} disabled={syncing}>{syncing ? 'Google登録中…' : '📅 Googleカレンダーに登録'}</button>
+    {#if syncMsg}<p class="sp-syncmsg">{syncMsg}</p>{/if}
   {/if}
 </section>
 
