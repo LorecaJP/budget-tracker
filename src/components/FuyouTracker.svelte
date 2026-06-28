@@ -83,11 +83,7 @@
   const signal = $derived(over || ratioPct >= 96 ? 'red' : ratioPct >= 80 ? 'amber' : 'green')
   const message = $derived(over ? '超えちゃった' : ratioPct >= 96 ? 'もうギリギリ' : ratioPct >= 80 ? 'そろそろ気をつけてね' : 'まだまだ大丈夫')
 
-  // 残りの月数（今年のみ）で割った1ヶ月あたりの目安。今月が未払いなら含める。
-  const curMonth = now.getMonth() + 1
-  const monthsLeft = $derived(isThisYear ? Math.max(0, 12 - curMonth + (grossM[curMonth - 1] > 0 ? 0 : 1)) : (year > now.getFullYear() ? 12 : 0))
-  const perMonthYen = $derived(monthsLeft > 0 ? Math.round(remaining / monthsLeft) : 0)
-  const perMonthHours = $derived(monthsLeft > 0 ? Math.floor(remainHours / monthsLeft) : 0)
+  const curMonth = now.getMonth() + 1   // 「1ヶ月あたりあと」は estFor 定義後（下）で算出
 
   // 月別リストから「見込み」を手動入力（その支給月＝就労月の翌月。就労月の override に保存）。
   const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -109,6 +105,17 @@
     return overrideFor(p) ?? Math.round(shiftHoursByPay[p - 1] * wage)
   }
   function isManualEst(p: number): boolean { return grossM[p - 1] === 0 && overrideFor(p) != null }
+
+  // 「1ヶ月あたりあと」＝残り枠 ÷「まだ予定が入っていない月（実績も見込みも無い月）」の数。
+  // 今年は今月以降の未予定月、来年は12ヶ月ぶんのうち未予定月を対象。6〜8月のように見込みを入れた月は
+  // すでに残り枠から差し引かれているので分母から外し、本当に空いている月あたりの目安にする。
+  const openMonths = $derived(
+    isThisYear
+      ? MONTHS.filter(p => p >= curMonth && grossM[p - 1] === 0 && estFor(p) === 0).length
+      : (year > now.getFullYear() ? MONTHS.filter(p => grossM[p - 1] === 0 && estFor(p) === 0).length : 0)
+  )
+  const perMonthYen = $derived(openMonths > 0 ? Math.round(remaining / openMonths) : 0)
+  const perMonthHours = $derived(openMonths > 0 ? Math.floor(remainHours / openMonths) : 0)
   const estAmt = $derived(Math.round((estH + estMin / 60) * wage))   // 入力時間 × 時給
   function openEst(p: number) {
     if (grossM[p - 1] > 0) return            // 受給済みの月は編集しない
@@ -168,8 +175,8 @@
       </div>
       <div class="fy-gl mt">1ヶ月あたりあと</div>
       <div class="fy-row">
-        <div class="fy-tile {over ? 'off' : 'time'}">{@render clockIcon()}<span class="fy-num">{over || monthsLeft === 0 ? '0' : perMonthHours.toLocaleString('ja-JP')}<small>時間</small></span></div>
-        <div class="fy-tile {over ? 'off' : 'money'}">{@render yenIcon()}<span class="fy-num">{over || monthsLeft === 0 ? '¥0' : yen(perMonthYen)}</span></div>
+        <div class="fy-tile {over ? 'off' : 'time'}">{@render clockIcon()}<span class="fy-num">{over || openMonths === 0 ? '0' : perMonthHours.toLocaleString('ja-JP')}<small>時間</small></span></div>
+        <div class="fy-tile {over ? 'off' : 'money'}">{@render yenIcon()}<span class="fy-num">{over || openMonths === 0 ? '¥0' : yen(perMonthYen)}</span></div>
       </div>
 
       {#if over}
@@ -242,7 +249,7 @@
       {/each}
     </ul>
 
-    <p class="hint">1〜12月の「えみ給料」を<strong>給料日</strong>で集計しています。上限（103万円）は<strong>交通費を除いた金額</strong>で判定します。給与明細を取り込むほど、通勤手当・総労働時間も正確になります（取り込んでいない月は総支給で代用）。「1ヶ月あたり」は <strong>今年の残り ÷ 残りの月数</strong> の目安です。</p>
+    <p class="hint">1〜12月の「えみ給料」を<strong>給料日</strong>で集計しています。上限（103万円）は<strong>交通費を除いた金額</strong>で判定します。給与明細を取り込むほど、通勤手当・総労働時間も正確になります（取り込んでいない月は総支給で代用）。「1ヶ月あたり」は <strong>今年の残り枠 ÷ まだ予定が入っていない月数{#if isThisYear}（今は{openMonths}ヶ月）{/if}</strong> の目安です（見込みを入れた月は残り枠から引かれているので分母に入れません）。</p>
     <p class="hint">⚠️ 社会保険の「壁」は別ものです。2026年9月までは〈週20時間以上 かつ 月8.8万円以上〉で加入。<strong>2026年10月からは金額の条件がなくなり、〈週20時間以上〉だけ</strong>で加入対象になります。週の労働時間が20時間に近づいたら注意してください。（時給・上限は設定タブで変更できます）</p>
   {/if}
 </div>
