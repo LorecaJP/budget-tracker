@@ -33,14 +33,12 @@ export function buildIcs(shifts: IcsShift[], title = 'バイト'): string {
   return lines.join('\r\n')
 }
 
-// .ics をダウンロード/オープン → iOS が「"カレンダー"に追加（すべて追加）」を表示。
-export function openIcs(shifts: IcsShift[], filename = 'yutori-shifts.ics'): void {
+// .ics を開く → iOS が text/calendar を認識して「"カレンダー"に追加（すべて追加）」を表示。
+// ダウンロード（download属性）だと Files に保存されてひと手間なので、blob を同一タブで
+// 直接ナビゲートして開く（iOSはこれでカレンダー追加シートを出す）。
+export function openIcs(shifts: IcsShift[], _filename = 'yutori-shifts.ics'): void {
   const blob = new Blob([buildIcs(shifts)], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  setTimeout(() => { a.remove(); URL.revokeObjectURL(url) }, 1500)
+  window.location.href = url
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
