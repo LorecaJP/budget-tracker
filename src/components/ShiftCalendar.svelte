@@ -63,6 +63,11 @@
     if (shift) { eId = shift.id; eStart = minHHMM(shift.start_min); eEnd = minHHMM(shift.end_min) }
     else { eId = undefined; eStart = '09:00'; eEnd = '17:00' }
   }
+  // よく使うシフトを1タップで登録（開始/終了をセットしてそのまま保存）
+  async function quick(start: string, end: string) {
+    eStart = start; eEnd = end
+    await save()
+  }
   async function save() {
     if (!sel) return
     const sm = toMin(eStart), em = toMin(eEnd)
@@ -116,6 +121,10 @@
     {#if sel}
       <div class="cal-edit">
         <div class="cal-edit-head">{Number(sel.slice(5, 7))}月{Number(sel.slice(8, 10))}日 {eId ? '（編集）' : '（新規）'}</div>
+        <div class="cal-presets">
+          <button class="cal-preset" onclick={() => quick('13:00', '20:30')} disabled={busy}>13:00〜20:30</button>
+          <button class="cal-preset" onclick={() => quick('09:30', '17:00')} disabled={busy}>9:30〜17:00</button>
+        </div>
         <div class="cal-times">
           <label class="field"><span>開始</span><input type="time" bind:value={eStart} /></label>
           <label class="field"><span>終了</span><input type="time" bind:value={eEnd} /></label>
