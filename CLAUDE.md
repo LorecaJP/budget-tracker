@@ -61,6 +61,7 @@
    │  ├─ month.ts          # 予算月の計算（25日始まり・動的startDay）/ yen / ymd 等
    │  ├─ businessday.ts    # 日本の祝日（2026-2027直書き）＋「引落日が休日なら翌営業日」/ 毎月の次回引落日
    │  ├─ session.ts        # 認証セッションの store
+   │  ├─ gcal.ts           # Googleカレンダー連携（方式2）。GIS でトークン取得→Calendar API でシフトをイベント登録/更新。CLIENT_ID 差し替えで有効化（§7）
    │  ├─ seed.ts           # 初回サインイン時の初期データ投入（口座・カテゴリ）
    │  ├─ db.ts             # 全テーブルの取得・CRUDヘルパー（ここに集約）。設定の get/save も
    │  ├─ payslip/          # 給与・賞与PDF取込（§6）
@@ -201,7 +202,7 @@
 1. **CSV取込**: 銀行/カードの明細CSVを取り込み、`needs_review=true` 付きで transactions に登録。カードごとにフォーマットが異なるためパーサーを種類別に。レビュー画面は PayslipImport の作りが参考になる。
 
 ### 中（機能拡充）
-- **シフト→Googleカレンダー連携（方式2 ワンタップ同期・えみ／扶養の続き）**: ShiftPlanner の確定シフトを**ボタン一つで Google カレンダーへ登録**→TimeTree は「外部カレンダー表示」で自動反映（TimeTree側機能）。実装は **Google Identity Services のトークンクライアントで Calendar スコープを取得→Calendar API でイベント insert**（要・Google Cloud の OAuth クライアント＋同意画面にえみをテストユーザー登録。オーナーが一度設定）。`shifts` テーブルはこの用途も見据えて作成済み。代替の軽い方法＝「カレンダーに追加」リンク/.ics（方式1）や .ics 購読（方式3・反映が遅い）。オーナーは**方式2を選択済み**。
+- **シフト→Googleカレンダー連携（方式2 ワンタップ同期・えみ／扶養）＝アプリ側実装済み・Client ID 待ち**: `src/lib/gcal.ts`（GIS トークンクライアントで Calendar スコープ取得→Calendar API でイベント PUT/POST、決定的イベントID `sh+uuid` で再登録しても重複しない、tz=Asia/Tokyo、title='バイト'）。`ShiftPlanner` 下部に **「📅 Googleカレンダーに登録」ボタン**（その年の shifts を同期）。TimeTree は「外部カレンダー表示」で自動反映（TimeTree側機能）。**残：オーナーが Google Cloud で OAuth ウェブクライアントを作成**（Calendar API 有効化／同意画面に えみ・ゆうき をテストユーザー登録／オリジン `https://lorecajp.github.io`）→ 発行された **Client ID を `gcal.ts` の `CLIENT_ID` に差し込む**と有効化（未設定なら `gcalConfigured()` が false でボタンは案内のみ）。※標準PWA(standalone)だと OAuth ポップアップが弱い可能性あり＝要実機確認。代替の軽い方法＝方式1（カレンダー追加リンク/.ics）・方式3（.ics購読・反映遅い）。
 2. **汎用レシートOCR**: 給与明細OCRは実装済み（Azure）。店舗レシートからの金額・店名・日付抽出は未。Azure を流用するか Tesseract.js。
 3. **完全オフライン入力＋同期**: 現状PWAは「インストール可＋アプリシェルのオフライン起動」まで。圏外で入力→オンライン復帰時に同期、は未実装（IndexedDBの保留キュー＋同期で大きめ）。
 4. **データのエクスポート/バックアップ**: 全データを JSON で書き出す（SwiftData移行の布石）。
