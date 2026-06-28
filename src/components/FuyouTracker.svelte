@@ -3,7 +3,7 @@
   import { yen } from '../lib/month'
   import { getFuyouConfig, listEmiSalaryYear, listPayslipDetails, listFuyouOverrides, setFuyouOverride, listShifts, type FuyouConfig, type PayslipDetail, type FuyouOverride, type Shift } from '../lib/db'
   import type { Transaction } from '../lib/types'
-  import ShiftPlanner from './ShiftPlanner.svelte'
+  import ShiftCalendar from './ShiftCalendar.svelte'
 
   // 社会保険(106万)の月次トリガー目安：月8.8万円（参考表示）
   const SHAHO_MONTH_LINE = 88000
@@ -16,10 +16,9 @@
   let txs = $state<Transaction[]>([])
   let details = $state<PayslipDetail[]>([])
   let loading = $state(true)
-  let estimateTotal = $state(0)   // ShiftPlanner から受け取る「見込み（未受給）」の合計
   let overrides = $state<FuyouOverride[]>([])
-  let shifts = $state<Shift[]>([])   // 月別リストにシフト由来の見込みを出すため（ShiftPlanner と同じデータ）
-  let shiftKey = $state(0)        // 手動見込みを変えたら ShiftPlanner を再マウントして再集計
+  let shifts = $state<Shift[]>([])   // シフト由来の見込み（時間×時給）の元データ
+  let calOpen = $state(false)        // シフト入力カレンダーの開閉
   let estM = $state<number | null>(null)   // 見込み編集中の支給月（1-12）
   let estH = $state(0)
   let estMin = $state(0)
@@ -35,6 +34,8 @@
   }
   onMount(load)
   function go(d: number) { year += d; load() }
+  // カレンダーでシフトを変えたら、ページ全体を再集計せずシフトだけ読み直す（モーダルは閉じない）
+  async function reloadShifts() { shifts = await listShifts(`${year - 1}-12-01`, `${year}-12-01`) }
 
   // 総支給（取引）を暦月ごとに集計
   const grossM = $derived.by(() => {
@@ -56,7 +57,30 @@
 
   const cap = $derived(cfg.year_cap)
   const wage = $derived(cfg.hourly_wage)
-  const received = $derived(grossM.map(v => v > 0))   // 支給月ごとに実給与が入っているか（見込みの二重計上回避に使う）
+
+  // 支給月ごとの見込み（時間×時給・手動上書き可）と、その合計。「あと働ける」の元データ。
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  function workMonthOfPay(p: number) { return p === 1 ? `${year - 1}-12` : `${year}-${pad2(p - 1)}` }   // 支給月 p の就労月＝p−1 月
+  function overrideFor(p: number): number | null { return overrides.find(o => o.work_month === workMonthOfPay(p))?.amount ?? null }
+  // 就労シフトから支給月ごとの見込み時間
+  const shiftHoursByPay = $derived.by(() => {
+    const a = new Array(12).fill(0) as number[]
+    for (let p = 1; p <= 12; p++) {
+      const wm = workMonthOfPay(p)
+      a[p - 1] = shifts.filter(s => s.work_date.slice(0, 7) === wm)
+        .reduce((sum, s) => sum + Math.max(0, (s.end_min - s.start_min - (s.break_min ?? 0)) / 60), 0)
+    }
+    return a
+  })
+  // 支給月 p の見込み（円）。受給済みは0。手動上書き優先、無ければシフト×時給。
+  function estFor(p: number): number {
+    if (grossM[p - 1] > 0) return 0
+    return overrideFor(p) ?? Math.round(shiftHoursByPay[p - 1] * wage)
+  }
+  function isManualEst(p: number): boolean { return grossM[p - 1] === 0 && overrideFor(p) != null }
+  // 見込み（未受給）の合計＝各支給月の見込みの和。確定（課税）＋これで「あと働ける」を算出。
+  const estimateTotal = $derived(MONTHS.reduce((s, p) => s + estFor(p), 0))
+
   const grossYtd = $derived(grossM.reduce((s, n) => s + n, 0))
   const commuteYtd = $derived(detM.reduce((s, c) => s + (c.commute ?? 0), 0))
   // 課税支給額＝総支給−通勤手当（明細の「課税支給額」は年内累計のため合算には使わない）
@@ -83,28 +107,7 @@
   const signal = $derived(over || ratioPct >= 96 ? 'red' : ratioPct >= 80 ? 'amber' : 'green')
   const message = $derived(over ? '超えちゃった' : ratioPct >= 96 ? 'もうギリギリ' : ratioPct >= 80 ? 'そろそろ気をつけてね' : 'まだまだ大丈夫')
 
-  const curMonth = now.getMonth() + 1   // 「1ヶ月あたりあと」は estFor 定義後（下）で算出
-
-  // 月別リストから「見込み」を手動入力（その支給月＝就労月の翌月。就労月の override に保存）。
-  const pad2 = (n: number) => String(n).padStart(2, '0')
-  function workMonthOfPay(p: number) { return p === 1 ? `${year - 1}-12` : `${year}-${pad2(p - 1)}` }
-  function overrideFor(p: number): number | null { return overrides.find(o => o.work_month === workMonthOfPay(p))?.amount ?? null }
-  // 就労シフトから支給月ごとの見込み時間（支給月 p の就労月＝p−1 月）
-  const shiftHoursByPay = $derived.by(() => {
-    const a = new Array(12).fill(0) as number[]
-    for (let p = 1; p <= 12; p++) {
-      const wm = workMonthOfPay(p)
-      a[p - 1] = shifts.filter(s => s.work_date.slice(0, 7) === wm)
-        .reduce((sum, s) => sum + Math.max(0, (s.end_min - s.start_min - (s.break_min ?? 0)) / 60), 0)
-    }
-    return a
-  })
-  // 支給月 p の見込み（円）。受給済みは0。手動上書き優先、無ければシフト×時給。
-  function estFor(p: number): number {
-    if (grossM[p - 1] > 0) return 0
-    return overrideFor(p) ?? Math.round(shiftHoursByPay[p - 1] * wage)
-  }
-  function isManualEst(p: number): boolean { return grossM[p - 1] === 0 && overrideFor(p) != null }
+  const curMonth = now.getMonth() + 1
 
   // 「1ヶ月あたりあと」＝残り枠 ÷「まだ予定が入っていない月（実績も見込みも無い月）」の数。
   // 今年は今月以降の未予定月、来年は12ヶ月ぶんのうち未予定月を対象。6〜8月のように見込みを入れた月は
@@ -128,13 +131,11 @@
     await setFuyouOverride(workMonthOfPay(p), estAmt)
     estM = null
     overrides = await listFuyouOverrides()
-    shiftKey++
   }
   async function clearEst(p: number) {
     await setFuyouOverride(workMonthOfPay(p), null)
     estM = null
     overrides = await listFuyouOverrides()
-    shiftKey++
   }
 </script>
 
@@ -211,11 +212,13 @@
       {/if}
     </section>
 
-    {#key shiftKey}
-      <ShiftPlanner {year} {wage} {received} onestimate={(t) => (estimateTotal = t)} />
-    {/key}
+    <section class="card">
+      <div class="card-label">シフト・見込み</div>
+      <p class="sp-lead">シフトを入れると <strong>時間 × 時給 ＝ 見込み</strong> として上の「あと働ける」に反映されます（就労した月の<strong>翌月末</strong>が支給）。見込みの確認・手直しは下の<strong>「月別のえみ給料」</strong>からできます。</p>
+      <button class="primary sp-add" onclick={() => (calOpen = true)}>📅 カレンダーでシフトを入力</button>
+    </section>
 
-    <div class="day-head"><span>月別のえみ給料</span><span>空欄はタップで見込み入力</span></div>
+    <div class="day-head"><span>月別のえみ給料</span><span>タップで見込みを入力・修正</span></div>
     <ul class="tx-list">
       {#each MONTHS as m (m)}
         {@const actual = grossM[m - 1]}
@@ -251,5 +254,9 @@
 
     <p class="hint">1〜12月の「えみ給料」を<strong>給料日</strong>で集計しています。上限（103万円）は<strong>交通費を除いた金額</strong>で判定します。給与明細を取り込むほど、通勤手当・総労働時間も正確になります（取り込んでいない月は総支給で代用）。「1ヶ月あたり」は <strong>今年の残り枠 ÷ まだ予定が入っていない月数{#if isThisYear}（今は{openMonths}ヶ月）{/if}</strong> の目安です（見込みを入れた月は残り枠から引かれているので分母に入れません）。</p>
     <p class="hint">⚠️ 社会保険の「壁」は別ものです。2026年9月までは〈週20時間以上 かつ 月8.8万円以上〉で加入。<strong>2026年10月からは金額の条件がなくなり、〈週20時間以上〉だけ</strong>で加入対象になります。週の労働時間が20時間に近づいたら注意してください。（時給・上限は設定タブで変更できます）</p>
+  {/if}
+
+  {#if calOpen}
+    <ShiftCalendar onclose={() => (calOpen = false)} onchange={reloadShifts} />
   {/if}
 </div>
