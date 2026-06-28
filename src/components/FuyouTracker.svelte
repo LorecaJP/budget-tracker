@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { yen } from '../lib/month'
-  import { getFuyouConfig, listEmiSalaryYear, listPayslipDetails, listFuyouOverrides, setFuyouOverride, type FuyouConfig, type PayslipDetail, type FuyouOverride } from '../lib/db'
+  import { getFuyouConfig, listEmiSalaryYear, listPayslipDetails, listFuyouOverrides, setFuyouOverride, listShifts, type FuyouConfig, type PayslipDetail, type FuyouOverride, type Shift } from '../lib/db'
   import type { Transaction } from '../lib/types'
   import ShiftPlanner from './ShiftPlanner.svelte'
 
@@ -18,6 +18,7 @@
   let loading = $state(true)
   let estimateTotal = $state(0)   // ShiftPlanner から受け取る「見込み（未受給）」の合計
   let overrides = $state<FuyouOverride[]>([])
+  let shifts = $state<Shift[]>([])   // 月別リストにシフト由来の見込みを出すため（ShiftPlanner と同じデータ）
   let shiftKey = $state(0)        // 手動見込みを変えたら ShiftPlanner を再マウントして再集計
   let estM = $state<number | null>(null)   // 見込み編集中の支給月（1-12）
   let estH = $state(0)
@@ -29,6 +30,7 @@
     txs = await listEmiSalaryYear(year)
     details = await listPayslipDetails(year)
     overrides = await listFuyouOverrides()
+    shifts = await listShifts(`${year - 1}-12-01`, `${year}-12-01`)   // 支給月1〜12 ＝ 就労月 前年12〜当年11
     loading = false
   }
   onMount(load)
@@ -91,12 +93,28 @@
   const pad2 = (n: number) => String(n).padStart(2, '0')
   function workMonthOfPay(p: number) { return p === 1 ? `${year - 1}-12` : `${year}-${pad2(p - 1)}` }
   function overrideFor(p: number): number | null { return overrides.find(o => o.work_month === workMonthOfPay(p))?.amount ?? null }
+  // 就労シフトから支給月ごとの見込み時間（支給月 p の就労月＝p−1 月）
+  const shiftHoursByPay = $derived.by(() => {
+    const a = new Array(12).fill(0) as number[]
+    for (let p = 1; p <= 12; p++) {
+      const wm = workMonthOfPay(p)
+      a[p - 1] = shifts.filter(s => s.work_date.slice(0, 7) === wm)
+        .reduce((sum, s) => sum + Math.max(0, (s.end_min - s.start_min - (s.break_min ?? 0)) / 60), 0)
+    }
+    return a
+  })
+  // 支給月 p の見込み（円）。受給済みは0。手動上書き優先、無ければシフト×時給。
+  function estFor(p: number): number {
+    if (grossM[p - 1] > 0) return 0
+    return overrideFor(p) ?? Math.round(shiftHoursByPay[p - 1] * wage)
+  }
+  function isManualEst(p: number): boolean { return grossM[p - 1] === 0 && overrideFor(p) != null }
   const estAmt = $derived(Math.round((estH + estMin / 60) * wage))   // 入力時間 × 時給
   function openEst(p: number) {
     if (grossM[p - 1] > 0) return            // 受給済みの月は編集しない
     estM = estM === p ? null : p
-    const ov = overrideFor(p)
-    if (ov != null && wage > 0) { const h = ov / wage; estH = Math.floor(h); estMin = Math.round((h - estH) * 60) }
+    const cur = estFor(p)                    // 手動上書き ／ 無ければシフト由来の見込みを初期値に
+    if (cur > 0 && wage > 0) { const h = cur / wage; estH = Math.floor(h); estMin = Math.round((h - estH) * 60) }
     else { estH = 0; estMin = 0 }
   }
   async function saveEst(p: number) {
@@ -194,17 +212,18 @@
     <ul class="tx-list">
       {#each MONTHS as m (m)}
         {@const actual = grossM[m - 1]}
-        {@const ov = overrideFor(m)}
+        {@const est = estFor(m)}
+        {@const manual = isManualEst(m)}
         <li class="tx-row {actual === 0 ? 'tap' : ''}" onclick={() => openEst(m)}>
           <div class="tx-main">
             <span class="tx-name">{m}月</span>
             <span class="tx-sub">
               {#if actual > 0}{actual > SHAHO_MONTH_LINE ? '⚠️ 月8.8万超' : 'OK'}{detM[m - 1].minutes != null ? ` · ${(detM[m - 1].minutes! / 60).toFixed(0)}時間` : ''}
-              {:else if ov != null}見込み（手動）
+              {:else if est > 0}{manual ? '見込み（手動）' : `見込み（シフト ${shiftHoursByPay[m - 1].toFixed(1).replace(/\.0$/, '')}h）`}
               {:else}＋ タップで見込み入力{/if}
             </span>
           </div>
-          <span class="tx-amt {actual > SHAHO_MONTH_LINE ? 'neg' : ''} {actual === 0 && ov != null ? 'est' : ''}">{actual ? yen(actual) : (ov != null ? yen(ov) : '−')}</span>
+          <span class="tx-amt {actual > SHAHO_MONTH_LINE ? 'neg' : ''} {actual === 0 && est > 0 ? 'est' : ''}">{actual ? yen(actual) : (est > 0 ? yen(est) : '−')}</span>
         </li>
         {#if estM === m}
           <li class="fy-estedit">
@@ -215,7 +234,7 @@
             </div>
             <div class="fy-estactions">
               <button class="primary" onclick={() => saveEst(m)}>保存</button>
-              {#if ov != null}<button class="link neg" onclick={() => clearEst(m)}>クリア</button>{/if}
+              {#if manual}<button class="link neg" onclick={() => clearEst(m)}>クリア</button>{/if}
               <button class="link" onclick={() => (estM = null)}>閉じる</button>
             </div>
           </li>
