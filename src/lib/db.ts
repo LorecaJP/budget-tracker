@@ -261,6 +261,50 @@ export async function listPayslipDetails(year: number, person = 'えみ'): Promi
   return data as PayslipDetail[]
 }
 
+// ---------- シフト＆見込み（えみの扶養計画用・後から追加した表） ----------
+// shifts: えみの予定シフト（就労日＋時間）。見込み課税収入＝Σ時間×時給 を出す元。
+//         将来の Google カレンダー連携（方式2）でもこの shifts を使う。
+// fuyou_overrides: 見込み額の手動上書き（就労月 'YYYY-MM' 単位。残業・早上がりのズレを手で直す用）。
+// どちらも未作成（移行前）でもアプリは動く（取得は空配列／no-op フォールバック）。
+export interface Shift {
+  id?: string; person?: string; work_date: string
+  start_min: number; end_min: number; break_min?: number; memo?: string
+}
+export interface FuyouOverride { person?: string; work_month: string; amount: number }
+
+// 就労日が [startISO, endISO) のシフトを取得（昇順）
+export async function listShifts(startISO: string, endISO: string, person = 'えみ'): Promise<Shift[]> {
+  const { data, error } = await supabase.from('shifts').select('*')
+    .eq('person', person).gte('work_date', startISO).lt('work_date', endISO)
+    .order('work_date')
+  if (error || !data) return []   // 表未作成なら空
+  return data as Shift[]
+}
+export async function upsertShift(s: Shift) {
+  if (s.id) return supabase.from('shifts').update(s).eq('id', s.id)
+  return supabase.from('shifts').insert({ person: 'えみ', ...s })
+}
+export async function deleteShift(id: string) {
+  return supabase.from('shifts').delete().eq('id', id)
+}
+export async function listFuyouOverrides(person = 'えみ'): Promise<FuyouOverride[]> {
+  const { data, error } = await supabase.from('fuyou_overrides')
+    .select('person, work_month, amount').eq('person', person)
+  if (error || !data) return []
+  return data as FuyouOverride[]
+}
+// 就労月(YYYY-MM)の見込み額を上書き。null/0 以下なら削除（＝自動計算に戻す）。世帯内の既存行を更新。
+export async function setFuyouOverride(workMonth: string, amount: number | null, person = 'えみ') {
+  const { data } = await supabase.from('fuyou_overrides').select('id')
+    .eq('person', person).eq('work_month', workMonth).maybeSingle()
+  const id = (data as { id: string } | null)?.id
+  if (amount == null || amount <= 0) {
+    return id ? supabase.from('fuyou_overrides').delete().eq('id', id) : { error: null }
+  }
+  if (id) return supabase.from('fuyou_overrides').update({ amount }).eq('id', id)
+  return supabase.from('fuyou_overrides').insert({ person, work_month: workMonth, amount })
+}
+
 // ---------- 支払い予定（引落の事前把握・キャッシュ準備用） ----------
 // テーブル scheduled_payments が未作成でも、取得は空配列にフォールバックして既存どおり動く。
 export interface ScheduledInput {

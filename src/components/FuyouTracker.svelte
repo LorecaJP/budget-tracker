@@ -3,6 +3,7 @@
   import { yen } from '../lib/month'
   import { getFuyouConfig, listEmiSalaryYear, listPayslipDetails, type FuyouConfig, type PayslipDetail } from '../lib/db'
   import type { Transaction } from '../lib/types'
+  import ShiftPlanner from './ShiftPlanner.svelte'
 
   // 社会保険(106万)の月次トリガー目安：月8.8万円（参考表示）
   const SHAHO_MONTH_LINE = 88000
@@ -15,6 +16,7 @@
   let txs = $state<Transaction[]>([])
   let details = $state<PayslipDetail[]>([])
   let loading = $state(true)
+  let estimateTotal = $state(0)   // ShiftPlanner から受け取る「見込み（未受給）」の合計
 
   async function load() {
     loading = true
@@ -46,6 +48,7 @@
 
   const cap = $derived(cfg.year_cap)
   const wage = $derived(cfg.hourly_wage)
+  const received = $derived(grossM.map(v => v > 0))   // 支給月ごとに実給与が入っているか（見込みの二重計上回避に使う）
   const grossYtd = $derived(grossM.reduce((s, n) => s + n, 0))
   const commuteYtd = $derived(detM.reduce((s, c) => s + (c.commute ?? 0), 0))
   // 課税支給額＝総支給−通勤手当（明細の「課税支給額」は年内累計のため合算には使わない）
@@ -56,8 +59,8 @@
   const totalHours = $derived(minutesYtd / 60)
   const weeklyAvgHours = $derived(monthsWithHours > 0 ? (totalHours / monthsWithHours) / WEEKS_PER_MONTH : 0)
 
-  // 上限判定は課税支給額ベース
-  const base = $derived(taxableYtd)
+  // 上限判定は課税支給額ベース。確定（受給済み）＋見込み（未受給）で「あと働ける」を出す。
+  const base = $derived(taxableYtd + estimateTotal)
   const over = $derived(base > cap)
   const overage = $derived(Math.max(0, base - cap))
   const remaining = $derived(Math.max(0, cap - base))
@@ -65,7 +68,7 @@
   const ratioPct = $derived(cap > 0 ? Math.round((base / cap) * 100) : 0)   // 超過時は100超
   const remainHours = $derived(wage > 0 ? Math.floor(remaining / wage) : 0)
   const paidMonths = $derived(grossM.filter(v => v > 0).length)
-  const projected = $derived(paidMonths > 0 ? Math.round((base / paidMonths) * 12) : 0)
+  const projected = $derived(paidMonths > 0 ? Math.round((taxableYtd / paidMonths) * 12) : 0)
   const isThisYear = $derived(year === now.getFullYear())
 
   // 信号（緑〜79% / 黄80〜95% / 赤96%〜）とメッセージ
@@ -130,7 +133,13 @@
 
     <section class="card">
       <div class="card-label">明細</div>
-      <div class="fy-kv"><span class="k">課税支給額</span><span class="v">{yen(taxableYtd)} / {yen(cap)}</span></div>
+      <div class="fy-kv"><span class="k">課税支給額（確定）</span><span class="v">{yen(taxableYtd)}</span></div>
+      {#if estimateTotal > 0}
+        <div class="fy-kv"><span class="k">見込み（未受給）</span><span class="v">{yen(estimateTotal)}</span></div>
+        <div class="fy-kv"><span class="k">合計（確定＋見込み）</span><span class="v {base > cap ? 'neg' : ''}">{yen(base)} / {yen(cap)}</span></div>
+      {:else}
+        <div class="fy-kv"><span class="k">上限</span><span class="v">{yen(cap)}</span></div>
+      {/if}
       <div class="fy-kv"><span class="k">総支給（交通費込み）</span><span class="v">{yen(grossYtd)}</span></div>
       {#if hasCommute}
         <div class="fy-kv"><span class="k">通勤手当</span><span class="v">{yen(commuteYtd)}</span></div>
@@ -145,6 +154,8 @@
         <p class="fy-note">※通勤手当・総労働時間は、給与明細を取り込んだ月のぶんだけ合計しています（取り込んでいない月は含みません）。</p>
       {/if}
     </section>
+
+    <ShiftPlanner {year} {wage} {received} onestimate={(t) => (estimateTotal = t)} />
 
     <div class="day-head"><span>月別のえみ給料（総支給）</span><span>社保の月8.8万ライン</span></div>
     <ul class="tx-list">
