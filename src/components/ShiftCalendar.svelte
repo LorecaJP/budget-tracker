@@ -120,20 +120,20 @@
 
     {#if sel}
       <div class="cal-edit">
-        <div class="cal-edit-head">{Number(sel.slice(5, 7))}月{Number(sel.slice(8, 10))}日 {eId ? '（編集）' : '（新規）'}</div>
+        <div class="cal-edit-head">
+          <span>{Number(sel.slice(5, 7))}月{Number(sel.slice(8, 10))}日 {eId ? '（編集）' : '（新規）'}</span>
+          {#if eId}<button class="cal-del" onclick={remove} disabled={busy}>削除</button>{/if}
+        </div>
         <div class="cal-presets">
           <button class="cal-preset" onclick={() => quick('13:00', '20:30')} disabled={busy}>13:00〜20:30</button>
           <button class="cal-preset" onclick={() => quick('09:30', '17:00')} disabled={busy}>9:30〜17:00</button>
         </div>
         <div class="cal-times">
-          <label class="field"><span>開始</span><input type="time" bind:value={eStart} /></label>
-          <label class="field"><span>終了</span><input type="time" bind:value={eEnd} /></label>
+          <label class="field"><span>開始</span><input type="time" step="900" bind:value={eStart} /></label>
+          <label class="field"><span>終了</span><input type="time" step="900" bind:value={eEnd} /></label>
         </div>
         <div class="cal-note">実働 {fmtH(netH)}h ・ {autoBreak > 0 ? `休憩${autoBreak}分（6時間超で自動）` : '休憩なし'}</div>
-        <div class="cal-edit-actions">
-          <button class="primary" onclick={save} disabled={busy}>{busy ? '保存中…' : '保存'}</button>
-          {#if eId}<button class="link neg" onclick={remove} disabled={busy}>削除</button>{/if}
-        </div>
+        <button class="primary cal-save" onclick={save} disabled={busy}>{busy ? '保存中…' : '保存'}</button>
       </div>
     {:else}
       <p class="hint cal-hint">日付をタップしてシフトを登録できます。</p>
