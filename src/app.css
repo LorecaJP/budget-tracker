@@ -364,6 +364,9 @@ button { font-family: inherit; cursor: pointer; }
 .cal-sat { color: #3b82f6; }
 .cal-edit { margin-top: 12px; padding: 12px; background: var(--surface-2); border-radius: 14px; }
 .cal-edit-head { font-weight: 700; margin-bottom: 8px; }
+.cal-presets { display: flex; gap: 8px; margin-bottom: 12px; }
+.cal-preset { flex: 1; min-width: 0; padding: 11px 6px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.cal-preset:disabled { opacity: .6; }
 .cal-times { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .cal-times .field { min-width: 0; gap: 4px; }
 .cal-times .field span { font-size: 12px; color: var(--muted); }
