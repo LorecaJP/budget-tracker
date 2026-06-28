@@ -136,7 +136,7 @@ button { font-family: inherit; cursor: pointer; }
 .sheet { width: 100%; min-width: 0; max-width: var(--maxw); background: var(--sheet-bg);
   -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
   border-top: 1px solid var(--glass-edge); border-radius: 22px 22px 0 0; padding: 8px 16px 24px;
-  max-height: 92vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
+  max-height: 92vh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; box-shadow: 0 -10px 40px rgba(0,0,0,.18); }
 .sheet-grab { width: 38px; height: 5px; border-radius: 3px; background: var(--border); margin: 4px auto 8px; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .seg { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 3px; }
@@ -350,27 +350,27 @@ button { font-family: inherit; cursor: pointer; }
 .sp-lead { font-size: 13px; color: var(--muted); line-height: 1.65; margin: 0 2px 12px; }
 .sp-add { width: 100%; }
 /* シフトカレンダー（ShiftCalendar・ボトムシート） */
-.cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 12px; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 6px; }
 .cal-title { font-size: 17px; font-weight: 700; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-.cal-wd { text-align: center; font-size: 11px; color: var(--muted); padding: 2px 0 4px; }
-.cal-day { height: 52px; min-width: 0; border: none; border-radius: 11px; background: var(--surface-2); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer; }
-.cal-day.empty { background: transparent; cursor: default; }
-.cal-day.has { background: var(--accent); color: #fff; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wd { text-align: center; font-size: 11px; color: var(--muted); padding: 1px 0 3px; }
+.cal-day { height: 44px; min-width: 0; border: none; border-radius: 10px; background: var(--surface-2); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer; }
+.cal-day.empty { background: var(--surface-2); opacity: .4; cursor: default; }
+.cal-day.has { background: var(--accent); color: #fff; opacity: 1; }
 .cal-day.sel { outline: 2.5px solid var(--text); outline-offset: 1px; }
 .cal-dnum { font-size: 14px; font-weight: 600; line-height: 1; }
 .cal-dh { font-size: 10px; opacity: .92; line-height: 1; }
 .cal-sun { color: var(--neg); }
 .cal-sat { color: #3b82f6; }
-.cal-edit { margin-top: 16px; padding: 14px; background: var(--surface-2); border-radius: 14px; }
-.cal-edit-head { font-weight: 700; margin-bottom: 10px; }
-.cal-times { display: flex; flex-direction: column; gap: 12px; }
-.cal-break { margin-top: 12px; display: block; }
-.cal-edit-actions { display: flex; gap: 14px; align-items: center; margin-top: 14px; }
-.cal-eh { margin-left: auto; font-weight: 700; color: var(--muted); }
-.cal-hint { margin: 16px 2px 4px; }
-.cal-total { margin-top: 16px; font-weight: 600; }
-.cal-times .field, .cal-break { min-width: 0; }
+.cal-edit { margin-top: 12px; padding: 12px; background: var(--surface-2); border-radius: 14px; }
+.cal-edit-head { font-weight: 700; margin-bottom: 8px; }
+.cal-times { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.cal-times .field { min-width: 0; gap: 4px; }
+.cal-times .field span { font-size: 12px; color: var(--muted); }
+.cal-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.cal-edit-actions { display: flex; gap: 14px; align-items: center; margin-top: 12px; }
+.cal-hint { margin: 14px 2px 4px; }
+.cal-total { margin-top: 12px; font-weight: 600; }
 .cal-edit input { width: 100%; min-width: 0; box-sizing: border-box; }
 .sp-row { cursor: pointer; }
 .sp-tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 7px; vertical-align: middle; }

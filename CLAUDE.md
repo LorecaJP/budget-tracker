@@ -87,7 +87,7 @@
       ├─ UpcomingPayments.svelte# 「そなえ」内の「支払い」。引落の事前把握（確定額＋引落日＋引落口座）→口座ごとに用意する額
       ├─ FuyouTracker.svelte    # 扶養トラッカー（えみ）。暦年でえみ給料を集計し上限までの残り金額/時間。タブ「扶養」（独立タブのまま）。確定＋見込み(ShiftPlanner)で「あと働ける」を算出
       ├─ ShiftPlanner.svelte    # 扶養タブ内。就労月ごとの見込み(=Σ時間×時給・手動上書き可)サマリ＋「カレンダーで入力」ボタン。支給は就労月の翌月末＝その年にカウント。将来のGカレンダー連携(方式2)もこの shifts を使う
-      ├─ ShiftCalendar.svelte   # シフト入力の月カレンダー（ボトムシート）。日付タップで1日1シフトを登録/編集/削除。grid は minmax(0,1fr)＋セルは固定高さ（aspect-ratio はこの環境の grid で崩れる）
+      ├─ ShiftCalendar.svelte   # シフト入力の月カレンダー（ボトムシート）。日付タップで1日1シフトを登録/編集/削除。休憩は「労働(開始〜終了)が6時間超のとき自動90分／6時間ちょうど以下は休憩なし」＝breakFor()で算出（手入力なし）。1画面に収まる高さ＋背景スクロール固定（body overflow:hidden ＋ .sheet overscroll-behavior:contain）。grid は minmax(0,1fr)＋セルは固定高さ（aspect-ratio はこの環境の grid で崩れる）。空セルは淡色で枠を均一に
       ├─ PayslipImport.svelte   # 給与・賞与PDF取込のモーダル（レビュー画面）
       ├─ RakutenCard.svelte     # 「楽天」タブ。請求月チップ＋**節約ウォッチ**（減らしたい店の月別合計/前月比/年換算/目標）＋カテゴリ別内訳（店ドリル/分類変更）＋年間サマリ
       ├─ RakutenImport.svelte   # 楽天カード請求明細PDF取込モーダル（カテゴリ別サマリ→請求月単位で登録）
