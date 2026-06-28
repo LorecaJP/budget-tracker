@@ -264,3 +264,11 @@ create policy "read my household" on household_members
 --     with check ( user_id = auth.uid() or in_my_household(user_id) );
 -- 対象: accounts, categories, transactions, recurring_rules, budgets,
 --       special_expenses, settings, scheduled_payments, payslip_details, rakuten_transactions
+
+-- ============================================================
+-- シフト＆見込み（えみの扶養計画・後から追加）
+-- ------------------------------------------------------------
+-- shifts（予定シフト：work_date / start_min / end_min / break_min）＝見込み課税収入(Σ時間×時給)の元。
+-- fuyou_overrides（就労月 work_month='YYYY-MM' の見込み額の手動上書き）。
+-- RLS は世帯共有（household rw）。適用は supabase/shifts.sql（household_share.sql 適用後）。
+-- 未作成でもアプリは動く（取得は空配列フォールバック）。定義は shifts.sql 参照。
