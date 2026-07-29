@@ -31,7 +31,11 @@ export interface ExtractResult {
 // 日本語PDF（CIDフォント）のテキスト抽出には CMap が必須。vite-plugin-static-copy で
 // dist/cmaps/ に配信し、base path 付きで渡す（渡さないと半角ｶﾅ等が空になる＝楽天明細が読めない）。
 const CMAP_URL = `${import.meta.env.BASE_URL}cmaps/`
-const PDF_OPTS = { cMapUrl: CMAP_URL, cMapPacked: true }
+// pdf.js v6 はスキャン画像（JBIG2/CCITT等の白黒圧縮）のデコードに WebAssembly を使う。
+// wasmUrl を渡さないと画像がデコードできず「白紙」になり、複合機スキャンの給与明細を
+// 画像化→OCRしても中身が空になる（RICOH 等の1bit CCITT/JBIG2 スキャンで発生）。§8参照。
+const WASM_URL = `${import.meta.env.BASE_URL}wasm/`
+const PDF_OPTS = { cMapUrl: CMAP_URL, cMapPacked: true, wasmUrl: WASM_URL }
 
 // PDF の1ページ目からテキストを抽出する。
 export async function extractPdfText(file: File): Promise<ExtractResult> {

@@ -27,6 +27,30 @@ const pdfCmapsDev: Plugin = {
   },
 }
 
+// pdf.js v6 はスキャン画像（JBIG2/CCITT等の白黒圧縮）のデコードを WebAssembly で行う。
+// wasmUrl を渡さないと画像がデコードできず「白紙」になり、複合機スキャンの給与明細を
+// 画像化→OCRしても中身が空になる（実害あり・対処済み。§8）。cMap と同じ方式で配信する。
+const WASM_SRC = 'node_modules/pdfjs-dist/wasm'
+const pdfWasm: Plugin = {
+  name: 'pdfjs-wasm',
+  apply: 'build',
+  closeBundle() { cpSync(WASM_SRC, 'dist/wasm', { recursive: true }) },
+}
+const pdfWasmDev: Plugin = {
+  name: 'pdfjs-wasm-dev',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use('/wasm', (req, res, next) => {
+      try {
+        const name = (req.url ?? '').split('?')[0].replace(/^\//, '')
+        if (!/^[\w.-]+$/.test(name)) return next()
+        res.setHeader('Content-Type', name.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream')
+        res.end(readFileSync(`${WASM_SRC}/${name}`))
+      } catch { next() }
+    })
+  },
+}
+
 // GitHub Pages のプロジェクトページ（username.github.io/<repo>/）で配信する場合、
 // base をリポジトリ名に合わせる。リポジトリ名を変えたらここも変更する。
 const repo = 'budget-tracker'
@@ -38,6 +62,8 @@ export default defineConfig({
     svelte(),
     pdfCmaps,
     pdfCmapsDev,
+    pdfWasm,
+    pdfWasmDev,
     VitePWA({
       registerType: 'autoUpdate',          // 新バージョン配信時に自動更新
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
