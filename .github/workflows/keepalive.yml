@@ -1,0 +1,34 @@
+name: Supabase keep-alive
+
+# 無料プランのSupabaseは約7日間アクセスが無いと自動で一時停止する。
+# 停止するとアプリが「Load failed」でサインインできなくなる（データは安全）。
+# それを防ぐため、定期的にSupabaseへ軽いリクエストを送って「使用中」の状態を保つ。
+# ※このワークフローは既定ブランチ(main)でのみ定期実行される（GitHubの仕様）。
+#   停止済みプロジェクトを復活させる機能ではない（復活はダッシュボードの Resume project）。
+
+on:
+  schedule:
+    - cron: '17 3 */2 * *'   # 2日ごと 03:17 UTC（7日の停止しきい値に対して十分な余裕）
+  workflow_dispatch: {}       # 手動実行も可
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase to prevent auto-pause
+        run: |
+          # publishable(anon) key は公開前提の鍵（アプリ内 src/lib/supabase.ts にも同梱）。
+          URL="https://hmmgvqoemblxqqivspvl.supabase.co/rest/v1/settings?select=id&limit=1"
+          KEY="sb_publishable_UoFnmx9CLJQvjnGSOQytSw_ydGjR-Rb"
+          code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            "$URL" || echo "000")
+          echo "HTTP status: $code"
+          echo "Response body:"; cat /tmp/resp.txt; echo
+          # RLSで空配列や認可エラーが返っても「アクセスあり」＝停止回避になるのでOK。
+          # 何も返らない(000)ときだけ失敗として通知する。
+          if [ "$code" = "000" ]; then
+            echo "::error::Supabaseから応答がありません（ネットワークエラー、またはプロジェクト停止中の可能性）"
+            exit 1
+          fi

@@ -46,7 +46,8 @@
 ├─ package.json
 ├─ schema_supabase.sql     # DB定義（テーブル/RLS/索引）。Supabaseに適用済み
 ├─ .env.example            # ローカル用の雛形。.env は .gitignore で除外
-├─ .github/workflows/deploy.yml
+├─ .github/workflows/deploy.yml   # main への push で GitHub Pages へデプロイ
+├─ .github/workflows/keepalive.yml# Supabase無料枠の自動停止を防ぐ定期ping（2日ごと。§8・§10）
 ├─ public/                 # favicon.svg, icons.svg, PWAアイコン(pwa-*.png, apple-touch-icon.png, maskable)
 ├─ supabase/
 │  └─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
@@ -231,7 +232,7 @@
 - **ビルド時の a11y 警告**（モーダル背景やli等）は出るがビルド成功・動作に影響なし。
 - **定期の重複計上防止はヒューリスティック**（同一カテゴリ・金額・日付・source='recurring'）。厳密にするなら transactions に recurring_rule_id 列を足す（スキーマ変更）。
 - **GitHub Pages の base path** は `/budget-tracker/`（vite.config.ts の `repo`）。リポジトリ名を変えたらここも変更。
-- Supabase 無料枠は長期未使用でプロジェクトが一時停止することがある（日常利用なら問題なし）。
+- **Supabase無料枠の自動停止（実害あり・対処済み）**: 約7日間アクセスが無いとプロジェクトが**一時停止（paused）**する。停止中は全通信が失敗し、アプリは**サインインで「Load failed」＋勝手にログアウト＋「読み込み中」で固まったように見える**（パスワードやコードの問題ではない。**データは安全に保持される**）。**復旧**＝Supabaseダッシュボードで **Resume project**（無料。数分でActive。`Upgrade to Pro`は有料なので押さない）→アプリ再読込→従来のメール/パスワードでサインイン。**再発防止**＝`.github/workflows/keepalive.yml` が2日ごとにSupabase REST（`/rest/v1/settings`）へ軽くpingして「使用中」を保つ（**定期実行は既定ブランチmainでのみ**なので、この対策はmainにマージして初めて効く）。停止済みプロジェクトをpingで復活はできない（Resumeは手動）。**エラー表示**＝`Auth.svelte` の `friendly()` が「Load failed/Failed to fetch」等を『サーバーに接続できませんでした…（データベースが一時停止している可能性があります）』の日本語に変換し、原因を分かりやすくした（`Invalid login credentials`＝「メール/パスワードが違います」等も変換。メールは `.trim()`＋`autocapitalize=none` でモバイルの空白/大文字化も予防）。
 
 ---
 
