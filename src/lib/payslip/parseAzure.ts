@@ -89,6 +89,7 @@ export function parseAzureLayout(ar: any): ParsedPayslip {
   // 内訳は表セルから（小計の 社会保険料計・課税対象額・控除合計 は拾わない）
   const dedDefs: { label: string; keys: string[] }[] = [
     { label: '健康保険', keys: ['健康保険'] },
+    { label: '子育支援金', keys: ['子育', '支援金'] },   // 2026年開始の子ども・子育て支援金（健保と別枠で控除）
     { label: '厚生年金', keys: ['厚生年金'] },
     { label: '雇用保険', keys: ['雇用保険'] },
     { label: '住民税', keys: ['住民税'] },

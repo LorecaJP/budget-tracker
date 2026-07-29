@@ -14,6 +14,7 @@ const CATEGORIES: { name: string; division: Division }[] = [
   { name: '所得税', division: 'tax' },
   { name: '住民税', division: 'tax' },
   { name: '健康保険', division: 'tax' },
+  { name: '子育支援金', division: 'tax' },
   { name: '厚生年金', division: 'tax' },
   { name: '雇用保険', division: 'tax' },
   { name: '防衛費', division: 'saving' },
