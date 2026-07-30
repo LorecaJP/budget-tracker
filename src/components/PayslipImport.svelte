@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { yen, ymd, budgetMonthOf } from '../lib/month'
-  import { listAccounts, listCategories, listTransactions, insertTransaction, upsertPayslipDetail, deleteOcrPayslipTx } from '../lib/db'
+  import { listAccounts, listCategories, listTransactions, insertTransaction, upsertPayslipDetail, deleteOcrPayslipTx, ensureCategory } from '../lib/db'
+  import { session } from '../lib/session'
   import type { Account, Category } from '../lib/types'
   import type { ParsedPayslip, PayslipDeduction } from '../lib/payslip/types'
 
@@ -159,6 +160,15 @@
     // memo にマーカーを付け、保存前に同マーカー（と旧マーカー無しの同人・同日OCR）を削除する。
     const marker = `#ps:${p ?? '-'}:${payDate}:${kind}`
     await deleteOcrPayslipTx(payDate, p, marker)
+    // 控除は税区分。対応カテゴリが無ければ税区分で自動作成して紐づける（例: 子育支援金）。
+    const uid = $session?.user.id
+    if (uid) {
+      for (const d of deductions) {
+        if (Math.round(Number(d.amount) || 0) <= 0 || !d.label || catByName[d.label]) continue
+        const cat = await ensureCategory(d.label, 'tax', uid)
+        if (cat) catByName = { ...catByName, [d.label]: cat }
+      }
+    }
     const reqs = [
       insertTransaction({ date: payDate, amount: Math.round(gross), type: 'income',
         category_id: catByName[incomeCatName]?.id ?? null, account_id: acc, person: p, memo: `${memo} ${marker}`.trim(), source: 'ocr' }),
@@ -259,8 +269,10 @@
         <p class="ded-cat">
           {#if Number(d.amount) < 0}
             → マイナス＝還付。<b>収入</b>として記録します（差引支給額に加算）。
+          {:else if d.label}
+            → {catByName[d.label] ? d.label + '（税）' : `新規カテゴリ「${d.label}」（税）として記録`}
           {:else}
-            → {catByName[d.label] ? d.label + '（tax）' : '未マッチ：区分なしで記録'}
+            → 項目名を入れると税区分で記録します
           {/if}
         </p>
       {/each}

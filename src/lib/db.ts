@@ -72,6 +72,16 @@ export async function upsertCategory(c: Partial<Category> & { id?: string; user_
 export async function archiveCategory(id: string, archived: boolean) {
   return supabase.from('categories').update({ archived }).eq('id', id)
 }
+// 名前が一致するカテゴリを返す。無ければ指定区分で新規作成して返す。
+// 給与取込で控除（例: 子育支援金）に対応する税カテゴリが未作成のとき自動で用意するのに使う。
+export async function ensureCategory(name: string, division: Division, userId: string): Promise<Category | null> {
+  const existing = await listCategories()
+  const hit = existing.find(c => c.name === name)
+  if (hit) return hit
+  const { data, error } = await supabase.from('categories').insert({ name, division, user_id: userId }).select().single()
+  if (error) return null
+  return data as Category
+}
 // 貯金の目標額を設定（categories.goal_amount。列未追加だとエラーを返す）
 export async function setCategoryGoal(id: string, goal: number | null) {
   return supabase.from('categories').update({ goal_amount: goal }).eq('id', id)
