@@ -2,13 +2,17 @@ name: Supabase keep-alive
 
 # 無料プランのSupabaseは約7日間アクセスが無いと自動で一時停止する。
 # 停止するとアプリが「Load failed」でサインインできなくなる（データは安全）。
-# それを防ぐため、定期的にSupabaseへ軽いリクエストを送って「使用中」の状態を保つ。
+# それを防ぐため、毎日 Supabase の DB へ有効なクエリを1回投げて「使用中」を保つ。
 # ※このワークフローは既定ブランチ(main)でのみ定期実行される（GitHubの仕様）。
 #   停止済みプロジェクトを復活させる機能ではない（復活はダッシュボードの Resume project）。
+#
+# 重要: ping は必ず 2xx を返す「本物のクエリ」にすること。以前は select=id で
+# HTTP 400 (column does not exist) になっており、緑に見えて実際はエラー＝停止を
+# 防げていなかった。settings の主キーは user_id なので id 列は無い。
 
 on:
   schedule:
-    - cron: '17 3 */2 * *'   # 2日ごと 03:17 UTC（7日の停止しきい値に対して十分な余裕）
+    - cron: '17 3 * * *'    # 毎日 03:17 UTC（停止しきい値 約7日に対して毎日で十分な余裕）
   workflow_dispatch: {}       # 手動実行も可
 
 jobs:
@@ -18,7 +22,8 @@ jobs:
       - name: Ping Supabase to prevent auto-pause
         run: |
           # publishable(anon) key は公開前提の鍵（アプリ内 src/lib/supabase.ts にも同梱）。
-          URL="https://hmmgvqoemblxqqivspvl.supabase.co/rest/v1/settings?select=id&limit=1"
+          # user_id は settings の実在列。RLSで空配列(200)が返っても DB へのクエリ＝アクセスありになる。
+          URL="https://hmmgvqoemblxqqivspvl.supabase.co/rest/v1/settings?select=user_id&limit=1"
           KEY="sb_publishable_UoFnmx9CLJQvjnGSOQytSw_ydGjR-Rb"
           code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
             -H "apikey: $KEY" \
@@ -26,9 +31,9 @@ jobs:
             "$URL" || echo "000")
           echo "HTTP status: $code"
           echo "Response body:"; cat /tmp/resp.txt; echo
-          # RLSで空配列や認可エラーが返っても「アクセスあり」＝停止回避になるのでOK。
-          # 何も返らない(000)ときだけ失敗として通知する。
-          if [ "$code" = "000" ]; then
-            echo "::error::Supabaseから応答がありません（ネットワークエラー、またはプロジェクト停止中の可能性）"
-            exit 1
-          fi
+          # 2xx（本物のクエリ成功）だけを成功とする。それ以外（400/401/5xx/000＝停止中や
+          # クエリ不正）は失敗にして GitHub から通知が飛ぶようにする＝壊れても気づける。
+          case "$code" in
+            2*) echo "OK: Supabase は使用中（停止回避）" ;;
+            *)  echo "::error::Supabase への ping が失敗しました (HTTP $code)。プロジェクト停止中、キー失効、またはクエリ不正の可能性。"; exit 1 ;;
+          esac

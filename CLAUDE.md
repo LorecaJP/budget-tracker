@@ -47,7 +47,7 @@
 ├─ schema_supabase.sql     # DB定義（テーブル/RLS/索引）。Supabaseに適用済み
 ├─ .env.example            # ローカル用の雛形。.env は .gitignore で除外
 ├─ .github/workflows/deploy.yml   # main への push で GitHub Pages へデプロイ
-├─ .github/workflows/keepalive.yml# Supabase無料枠の自動停止を防ぐ定期ping（2日ごと。§8・§10）
+├─ .github/workflows/keepalive.yml# Supabase無料枠の自動停止を防ぐ定期ping（毎日。§8・§10）
 ├─ public/                 # favicon.svg, icons.svg, PWAアイコン(pwa-*.png, apple-touch-icon.png, maskable)
 ├─ supabase/
 │  └─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
@@ -233,7 +233,7 @@
 - **ビルド時の a11y 警告**（モーダル背景やli等）は出るがビルド成功・動作に影響なし。
 - **定期の重複計上防止はヒューリスティック**（同一カテゴリ・金額・日付・source='recurring'）。厳密にするなら transactions に recurring_rule_id 列を足す（スキーマ変更）。
 - **GitHub Pages の base path** は `/budget-tracker/`（vite.config.ts の `repo`）。リポジトリ名を変えたらここも変更。
-- **Supabase無料枠の自動停止（実害あり・対処済み）**: 約7日間アクセスが無いとプロジェクトが**一時停止（paused）**する。停止中は全通信が失敗し、アプリは**サインインで「Load failed」＋勝手にログアウト＋「読み込み中」で固まったように見える**（パスワードやコードの問題ではない。**データは安全に保持される**）。**復旧**＝Supabaseダッシュボードで **Resume project**（無料。数分でActive。`Upgrade to Pro`は有料なので押さない）→アプリ再読込→従来のメール/パスワードでサインイン。**再発防止**＝`.github/workflows/keepalive.yml` が2日ごとにSupabase REST（`/rest/v1/settings`）へ軽くpingして「使用中」を保つ（**定期実行は既定ブランチmainでのみ**なので、この対策はmainにマージして初めて効く）。停止済みプロジェクトをpingで復活はできない（Resumeは手動）。**エラー表示**＝`Auth.svelte` の `friendly()` が「Load failed/Failed to fetch」等を『サーバーに接続できませんでした…（データベースが一時停止している可能性があります）』の日本語に変換し、原因を分かりやすくした（`Invalid login credentials`＝「メール/パスワードが違います」等も変換。メールは `.trim()`＋`autocapitalize=none` でモバイルの空白/大文字化も予防）。
+- **Supabase無料枠の自動停止（実害あり・対処済み）**: 約7日間アクセスが無いとプロジェクトが**一時停止（paused）**する。停止中は全通信が失敗し、アプリは**サインインで「Load failed」＋勝手にログアウト＋「読み込み中」で固まったように見える**（パスワードやコードの問題ではない。**データは安全に保持される**）。**復旧**＝Supabaseダッシュボードで **Resume project**（無料。数分でActive。`Upgrade to Pro`は有料なので押さない）→アプリ再読込→従来のメール/パスワードでサインイン。**再発防止**＝`.github/workflows/keepalive.yml` が毎日Supabase REST（`/rest/v1/settings?select=user_id`）へクエリして「使用中」を保つ（**定期実行は既定ブランチmainでのみ**なので、この対策はmainにマージして初めて効く）。停止済みプロジェクトをpingで復活はできない（Resumeは手動）。**落とし穴（実害あり・対処済み）**：pingは必ず**2xxを返す本物のクエリ**にすること。旧実装は `select=id` で **HTTP 400（column settings.id does not exist／主キーは`user_id`で`id`列は無い）** になっており、ワークフローは「000以外＝成功」で緑に見えていたが実際はエラー応答で、**アクティビティとしてカウントされず停止を防げていなかった**（2026-08に再停止して発覚）。対処＝クエリを `select=user_id` に修正し、**2xx以外は失敗扱いにして通知が飛ぶ**ようにした（壊れても気づける）。それでも無料枠は停止しうるため、確実に止めたくない場合は **Supabase Pro（有料）** が確実。**エラー表示**＝`Auth.svelte` の `friendly()` が「Load failed/Failed to fetch」等を『サーバーに接続できませんでした…（データベースが一時停止している可能性があります）』の日本語に変換し、原因を分かりやすくした（`Invalid login credentials`＝「メール/パスワードが違います」等も変換。メールは `.trim()`＋`autocapitalize=none` でモバイルの空白/大文字化も予防）。
 
 ---
 
