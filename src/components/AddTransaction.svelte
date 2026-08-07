@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { ymd } from '../lib/month'
   import { listAccounts, listCategories, insertTransaction, updateTransaction, deleteTransaction } from '../lib/db'
@@ -68,7 +69,7 @@
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onclose() }} />
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
+<div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="取引">
     <div class="sheet-grab"></div>
     <div class="sheet-head">

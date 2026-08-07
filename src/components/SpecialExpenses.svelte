@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { yen } from '../lib/month'
   import { listSpecialExpenses, upsertSpecialExpense, deleteSpecialExpense, type SpecialExpense } from '../lib/db'
@@ -75,7 +76,7 @@
 
 {#if editing}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => editing = null}>キャンセル</button><span></span><span></span></div>
       <label class="field"><span>費目名</span><input type="text" bind:value={editing.name} placeholder="自動車税 など" /></label>

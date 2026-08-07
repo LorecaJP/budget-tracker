@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   // 月カレンダー（ボトムシート）。日付をタップして 1 日 1 シフトを登録/編集/削除。
   // 休憩は「労働(開始〜終了)が6時間超のときだけ自動90分／ちょうど6時間以下は休憩なし」。
   import { listShifts, upsertShift, deleteShift, type Shift } from '../lib/db'
@@ -97,7 +98,7 @@
   }
 </script>
 
-<div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
+<div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="シフト">
     <div class="sheet-grab"></div>
     <div class="sheet-head">

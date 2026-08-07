@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { extractPdfRows } from '../lib/payslip/extract'
   import { parseRakuten, type ParsedRakuten } from '../lib/rakuten/parse'
   import { replaceRakutenStatement } from '../lib/db'
@@ -47,7 +48,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
+<div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) onclose() }}>
   <div class="sheet" role="dialog" aria-modal="true">
     <div class="sheet-head"><button class="link" onclick={onclose}>閉じる</button><span class="sheet-title">楽天カードを取り込む</span><span></span></div>
 
