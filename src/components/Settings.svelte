@@ -277,6 +277,8 @@
     {/if}
     <button class="add-inline" onclick={newRec}>＋ 定期を追加</button>
   {/if}
+
+  <button class="signout" onclick={() => supabase.auth.signOut()}>サインアウト</button>
 </div>
 
 {#if catEdit}

@@ -76,11 +76,24 @@ button { font-family: inherit; cursor: pointer; }
 .field input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-/* ===== アプリ枠 ===== */
-.app { max-width: var(--maxw); margin: 0 auto; min-height: 100vh; padding-bottom: 96px; }
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
-.brand { font-weight: 600; letter-spacing: .04em; }
-.content { padding: 0 16px; }
+/* ===== アプリ枠 =====
+   アプリシェル構造：.app は画面いっぱいの高さで固定しスクロールさせない。
+   スクロールするのは .content の内側だけ。これでタブバー/FABが本当に固定され、
+   iOSのページ全体スクロール（ゴムバンド／ツールバー連動）で一緒に動かなくなる。 */
+.app {
+  max-width: var(--maxw); margin: 0 auto;
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.content {
+  flex: 1; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;   /* 端でのゴムバンドを内側で吸収＝背景に伝播させない */
+  /* 上：ノッチ回避、下：固定タブバー分の余白 */
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(112px + env(safe-area-inset-bottom, 0px));
+}
+/* モーダル表示中は背景（.content）をスクロールさせない（ShiftCalendar など） */
+body.modal-open .content { overflow: hidden; }
 
 /* ===== ホーム ===== */
 .month-head { font-size: 15px; color: var(--muted); margin: 2px 2px 10px; }
@@ -146,8 +159,14 @@ button { font-family: inherit; cursor: pointer; }
 .amount-input { width: 100%; padding: 11px 12px; font-size: 17px; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 6px 0 14px; color: var(--text); }
 
 /* ===== タブバー & 画面 ===== */
-.app { padding-bottom: 120px; }
 .screen { padding: 0 16px 8px; }
+/* 設定の最下部のサインアウト（控えめな全幅ボタン） */
+.signout {
+  width: 100%; margin: 24px 0 8px; padding: 13px;
+  background: var(--surface); color: var(--neg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600;
+}
 /* 浮遊するガラスのタブバー */
 .tabbar {
   position: fixed; left: 50%; transform: translateX(-50%);

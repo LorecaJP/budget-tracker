@@ -35,11 +35,11 @@
   }
   $effect(() => { void y; void m; load() })
 
-  // モーダル表示中は背景（扶養ページ）をスクロールさせない
+  // モーダル表示中は背景（扶養ページ＝.content）をスクロールさせない
+  // （スクロール領域は body ではなく .content なので body.modal-open クラスで固定する）
   $effect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    document.body.classList.add('modal-open')
+    return () => document.body.classList.remove('modal-open')
   })
 
   const cells = $derived.by(() => {
