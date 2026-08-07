@@ -1,6 +1,5 @@
 <script lang="ts">
   import { session, sessionReady } from './lib/session'
-  import { supabase } from './lib/supabase'
   import { ensureSeed } from './lib/seed'
   import { getSettings, getMyMembership, type Membership } from './lib/db'
   import { setMonthStartDay } from './lib/month'
@@ -76,11 +75,6 @@
   <Auth />
 {:else}
   <div class="app">
-    <header class="topbar">
-      <span class="brand">yutori</span>
-      <button class="link" onclick={() => supabase.auth.signOut()}>サインアウト</button>
-    </header>
-
     <main class="content">
       {#if !ready}
         <p class="boot">読み込み中…</p>
