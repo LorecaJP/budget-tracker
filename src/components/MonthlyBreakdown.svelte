@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { budgetMonthOf, budgetMonthRange, shiftBudgetMonth, periodKey, ymd, yen } from '../lib/month'
   import { listTransactions, listCategories, listBudgets, setBudget, setBudgetAllMonths, listSpecialExpenses, type Budget, type SpecialExpense } from '../lib/db'
@@ -176,7 +177,7 @@
 
 {#if editing}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => editing = null}>キャンセル</button><span></span><span></span></div>
       <div class="card-label">{year}年{month}月の予定額</div>

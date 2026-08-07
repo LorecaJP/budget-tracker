@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { yen } from '../lib/month'
   import { nextMonthlyDue } from '../lib/businessday'
@@ -162,7 +163,7 @@
 
 {#if edit}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) edit = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) edit = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => edit = null}>キャンセル</button><span></span><span></span></div>
       <label class="field"><span>内容</span><input type="text" bind:value={edit.name} placeholder="家賃 / 電気代 / 楽天カード など" /></label>

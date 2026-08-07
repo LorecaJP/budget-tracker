@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { yen } from '../lib/month'
   import { listRakutenTx, updateRakutenCategoryByMerchant } from '../lib/db'
@@ -208,7 +209,7 @@
 
 {#if editing}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) editing = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => editing = null}>キャンセル</button><span class="sheet-title">分類を変更</span><span></span></div>
       <p class="hint">「{editing.merchant}」を別のカテゴリに（同じ店の明細すべてに適用）</p>
@@ -221,7 +222,7 @@
 
 {#if editWatch}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) commitWatch() }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) commitWatch() }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={commitWatch}>閉じる</button><span class="sheet-title">節約ウォッチの編集</span><span></span></div>
       <p class="hint">減らしたい店をグループで登録。キーワードは店名の一部（カンマ区切り、半角ｶﾅ/全角どちらもOK・複数可）。目標は1ヶ月あたりの上限（任意）。</p>

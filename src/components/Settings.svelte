@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { portal } from '../lib/portal'
   import { onMount } from 'svelte'
   import { supabase } from '../lib/supabase'
   import { session } from '../lib/session'
@@ -283,7 +284,7 @@
 
 {#if catEdit}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) catEdit = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) catEdit = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => catEdit = null}>キャンセル</button><span></span><span></span></div>
       <label class="field"><span>名前</span><input type="text" bind:value={catEdit.name} /></label>
@@ -298,7 +299,7 @@
 
 {#if accEdit}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) accEdit = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) accEdit = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => accEdit = null}>キャンセル</button><span></span><span></span></div>
       <label class="field"><span>名前</span><input type="text" bind:value={accEdit.name} /></label>
@@ -316,7 +317,7 @@
 
 {#if recEdit}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) recEdit = null }}>
+  <div class="modal-backdrop" use:portal onclick={(e) => { if (e.target === e.currentTarget) recEdit = null }}>
     <div class="sheet" role="dialog" aria-modal="true">
       <div class="sheet-head"><button class="link" onclick={() => recEdit = null}>キャンセル</button><span></span><span></span></div>
       <label class="field"><span>名前</span><input type="text" bind:value={recEdit.name} placeholder="家賃 など" /></label>
