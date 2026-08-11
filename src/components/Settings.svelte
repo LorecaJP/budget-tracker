@@ -9,6 +9,7 @@
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
     listBudgets, setBudget, listTransactions, saveSettings,
     getFuyouConfig, saveFuyouConfig, setCategoryGoal, setAccountAlloc, setBudgetAllMonths,
+    exportAllData,
     type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
@@ -19,6 +20,30 @@
   let categories = $state<Category[]>([])
 
   const DIVS: Division[] = ['income', 'tax', 'saving', 'fixed', 'variable']
+
+  // --- データ書き出し（バックアップ／分析用） ---
+  let exporting = $state(false)
+  let exportMsg = $state('')
+  async function doExport() {
+    exporting = true; exportMsg = ''
+    try {
+      const data = await exportAllData()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const d = new Date()
+      const name = `yutori-backup-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`
+      const a = document.createElement('a')
+      a.href = url; a.download = name
+      document.body.appendChild(a); a.click()
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url) }, 1500)
+      const rows = Object.entries(data).filter(([, v]) => Array.isArray(v)).reduce((s, [, v]) => s + (v as unknown[]).length, 0)
+      exportMsg = `書き出しました（${name} / ${rows}件）`
+    } catch (e) {
+      exportMsg = '書き出しに失敗しました：' + (e instanceof Error ? e.message : String(e))
+    } finally {
+      exporting = false
+    }
+  }
 
   // --- 全般（月の開始日） ---
   const DAYS = Array.from({ length: 28 }, (_, i) => i + 1)
@@ -278,6 +303,11 @@
     {/if}
     <button class="add-inline" onclick={newRec}>＋ 定期を追加</button>
   {/if}
+
+  <div class="day-head" style="margin-top:22px"><span>データ</span></div>
+  <button class="add-inline" onclick={doExport} disabled={exporting}>{exporting ? '書き出し中…' : '⬇️ データを書き出す（バックアップ／分析用 JSON）'}</button>
+  {#if exportMsg}<p class="hint">{exportMsg}</p>{/if}
+  <p class="hint">全データを1つのJSONファイルに書き出します。バックアップのほか、貯金の相談で共有する用にも使えます。</p>
 
   <button class="signout" onclick={() => supabase.auth.signOut()}>サインアウト</button>
 </div>
