@@ -384,3 +384,23 @@ export async function deleteOcrPayslipTx(date: string, person: string | null, ma
   if (ids.length) await supabase.from('transactions').delete().in('id', ids)
   return ids.length
 }
+
+// ---------- 全データ書き出し（バックアップ／分析用） ----------
+// 全テーブルを本人ぶんだけ取得して1つのJSONにまとめる（RLSで本人=世帯のデータのみ）。
+// 未作成の表はエラーになるが握りつぶして空配列にし、_errors に記録する。
+export async function exportAllData(): Promise<Record<string, unknown>> {
+  const tables = [
+    'settings', 'accounts', 'categories', 'budgets', 'recurring_rules',
+    'transactions', 'special_expenses', 'scheduled_payments', 'payslip_details',
+    'rakuten_transactions', 'shifts', 'fuyou_overrides',
+  ]
+  const out: Record<string, unknown> = { app: 'yutori', schema: 1, exported_at: new Date().toISOString() }
+  const errors: Record<string, string> = {}
+  for (const t of tables) {
+    const { data, error } = await supabase.from(t).select('*')
+    out[t] = data ?? []
+    if (error) errors[t] = error.message
+  }
+  if (Object.keys(errors).length) out._errors = errors
+  return out
+}
