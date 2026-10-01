@@ -63,7 +63,7 @@ declare t text;
 begin
   foreach t in array array[
     'accounts','categories','transactions','recurring_rules','budgets',
-    'special_expenses','settings','scheduled_payments','payslip_details','rakuten_transactions'
+    'special_expenses','settings','scheduled_payments','payslip_details','rakuten_transactions','month_entries'
   ] loop
     if to_regclass(t) is null then continue; end if;
     execute format('alter table %I enable row level security', t);
@@ -121,7 +121,7 @@ end $$;
 -- begin
 --   foreach t in array array[
 --     'accounts','categories','transactions','recurring_rules','budgets',
---     'special_expenses','settings','scheduled_payments','payslip_details','rakuten_transactions'
+--     'special_expenses','settings','scheduled_payments','payslip_details','rakuten_transactions','month_entries'
 --   ] loop
 --     if to_regclass(t) is null then continue; end if;
 --     execute format('drop policy if exists "household rw" on %I', t);

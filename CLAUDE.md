@@ -33,7 +33,7 @@
 - PWA: **`vite-plugin-pwa`**（Workbox。manifest + Service Worker を自動生成。`registerType: 'autoUpdate'`）
 - PDF処理: **`pdfjs-dist`（legacy ビルド）**。給与明細PDFのテキスト抽出・スキャンの画像化に使用（§6・§8の注意点に注意）。
 - スキャンOCR: **Azure Document Intelligence（prebuilt-layout）** を Supabase Edge Function `payslip-ocr` 経由で呼ぶ。
-- ビルド: `npm run build`（= `vite build`）。型チェック: `npm run check`。`npm run dev` でローカル開発。
+- ビルド: `npm run build`（= `vite build`）。型チェック: `npm run check`。単体テスト: `npm test`（= `vitest run`。deploy.yml でもビルド前に実行＝テストが落ちるとデプロイされない）。`npm run dev` でローカル開発。
 
 ---
 
@@ -50,7 +50,10 @@
 ├─ .github/workflows/keepalive.yml# Supabase無料枠の自動停止を防ぐ定期ping（毎日。§8・§10）
 ├─ public/                 # favicon.svg, icons.svg, PWAアイコン(pwa-*.png, apple-touch-icon.png, maskable)
 ├─ supabase/
-│  └─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
+│  ├─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
+│  ├─ household_share.sql      # 世帯共有（えみ専用ログイン）の適用・連携・ロールバック
+│  ├─ shifts.sql               # シフト・見込み（扶養）
+│  └─ month_entries.sql        # 新しい家計表（月×費目の予定と実績）＋ categories.card_account_id。§12
 └─ src/
    ├─ main.ts
    ├─ App.svelte           # タブ構成（6タブ）・認証ゲート・起動時に設定読込→シード→描画。分析/年間/楽天は「ふりかえり」(Reports)、支払い/特別費は「そなえ」(Prepare)にセグメントで集約
@@ -65,6 +68,9 @@
    │  ├─ ics.ts            # iPhone純正カレンダーへの追加（.ics 生成→iOSの「カレンダーに追加」起動）。OAuth/サーバ不要。ShiftCalendar の「この月をカレンダーに追加」で使用
    │  ├─ seed.ts           # 初回サインイン時の初期データ投入（口座・カテゴリ）
    │  ├─ db.ts             # 全テーブルの取得・CRUDヘルパー（ここに集約）。設定の get/save も
+   │  ├─ plan/
+   │  │  ├─ entries.ts     #   新しい家計表のロジック（純粋関数）：行の値/状態、予算月キー、今のデータ→新しい表への写し（§12）
+   │  │  └─ entries.test.ts#   上記の単体テスト（vitest）
    │  ├─ payslip/          # 給与・賞与PDF取込（§6）
    │  │  ├─ types.ts       #   ParsedPayslip 型（kind: salary/bonus 等）
    │  │  ├─ extract.ts     #   pdf.js でテキスト抽出 / 全ページ行復元(extractPdfRows) / 画像化（Safari対応は §8）
@@ -114,6 +120,8 @@
 - **household_members**（世帯メンバー・**世帯共有/えみ専用ログイン用**・後から追加した表）: user_id(PK), household_id, person('ゆうき'/'えみ'＝表示の出し分け用), role('owner'/'member')。**ゆうき/えみ が別ログインで同じ家計データを共有**するための表。RLS は `my_household_id()`/`in_my_household()`（**security definer**で自己参照の無限再帰を回避）を使い、各データ表のポリシーを「本人のみ」→「同じ世帯なら閲覧/編集可」に置換する。**未作成（移行前）でもアプリは動く**＝`getMyMembership` が null を返し、単一ユーザー・全画面表示で従来どおり。作成・連携・ロールバックは `supabase/household_share.sql`（§5末）。
 
 - **shifts**（えみの予定シフト・**扶養計画/見込み用**・後から追加した表）: work_date(就労日), start_min/end_min(0時からの分), break_min(休憩分), person('えみ'), memo。**見込み課税収入＝Σ(時間)×時給**の元。**将来の Google カレンダー連携（方式2 ワンタップ同期）でもこの shifts を使う**。RLS は世帯共有。未作成でも空配列フォールバック。適用は `supabase/shifts.sql`。
+- **month_entries**（新しい家計表・**作り替え中**・後から追加した表）: period_month('YYYY-MM'), kind(category=費目/card=カード引落/extra=その月だけの項目), category_id, account_id(カード口座), name/division(extra用), **planned(予定)**, **actual(実績・null=まだ予定)**, actual_source(manual/payslip/card/migrated), memo。**1か月×1費目＝1行に予定と実績の両方を持つ**（二重入力をやめる＝予定どおりなら1タップで確定）。RLS は世帯共有（未適用なら本人のみ）。適用は `supabase/month_entries.sql`。未作成でも `listMonthEntries` は空配列。詳細は §12。
+- **categories.card_account_id**（後から追加した列）: この費目を払っているカード口座（カード払いの内訳を自分の行に出し、カード行は「合計−カード払いの費目＝その他」にして二重計上しない。§12）。
 - **fuyou_overrides**（見込み額の手動上書き・後から追加した表）: person, work_month('YYYY-MM'＝就労月), amount(見込み課税額)。シフトからの自動見込みを手で上書きする（残業・早上がりのズレ調整）。`unique(user_id, person, work_month)`。`setFuyouOverride` は世帯内の既存行を更新（0/null で削除＝自動に戻す）。未作成でも動く。
 
 ### 会計区分（division）
@@ -246,6 +254,7 @@ cp .env.example .env     # 任意。URL/keyを入れる（無くてもフォー�
 npm run dev              # http://localhost:5173
 npm run dev -- --host    # 同一Wi-FiのiPhoneからも開ける
 npm run check            # 型チェック（svelte-check + tsc）
+npm test                 # 単体テスト（vitest。src/**/*.test.ts）
 npm run build            # 本番ビルド確認
 ```
 
@@ -267,6 +276,8 @@ npm run build            # 本番ビルド確認
 
 ## 11. 次にやると良いこと（推奨順）
 
+> **現在は §12「作り替え」を最優先で進めている。** 以下は作り替え前からの残作業。
+
 1. CSV取込（使っているカード/銀行から順に。レビュー画面は PayslipImport を参考に）
 2. ~~データの JSON エクスポート~~（実装済み。設定→データ→書き出す＝`exportAllData`）
 3. 定期の週次対応
@@ -274,3 +285,27 @@ npm run build            # 本番ビルド確認
 5. 汎用レシートOCR
 
 実装は必ず §4 の規約に従い、データ操作は `src/lib/db.ts` に集約。**そして変更したら CLAUDE.md も同じPRで更新する（冒頭の運用ルール）。**
+
+---
+
+## 12. 作り替え（進行中・2026-10〜）
+
+オーナーと合意した方針。**今の画面は残したまま、同じアプリの中に新しい画面を作り、できたら切り替える**（給与取込・扶養・カード取込・ログイン/世帯共有・Safari対策などの土台は再利用）。プロトタイプ（オーナー確認済み）：https://claude.ai/artifact/NP14PXgFTGgxrAMahSugr6
+
+### やりたいこと（オーナーの言葉の要約）
+1. 毎月の給料明細（2人分）を読み込んで自動登録（既存機能）。
+2. 毎月の支出を**費目ごとの月額**で記録（買い物1回ごとの記録は不要）。**予定と実績は分けて残す**が、二重入力はしない：行の表示名は費目名のまま、予定額が入っていて、**予定どおりなら1タップで確定／違えば実績を入れ直す**（予定も残る）。
+3. 来月以降も同じ表で、収入も支出も先に入れて**先々に備える**（赤字になる月・特別費の備えの残高が見える）。
+4. 扶養チェックは今のまま。
+
+### 決まった画面構成
+- タブは **今月 / 見通し / 扶養 / メニュー** の4つ。ほかの機能（給与明細の取込・カード明細の取込・特別費と備え・カードのふりかえり・年間・分析・引き落としと口座・費目・設定）はすべてメニューの奥へ（機能は全部残す。使いやすさ・見やすさが最優先）。
+- 特別費：毎月の表に「特別費」のまとまりで出す＋今のような一覧画面も残す。「特別費の備え（年間の特別費÷12）」を貯金・備えの行として毎月の表に入れる。
+- **カード**：**引き落とし日の月**に計上。カード払いの費目（携帯・電気など）は自分の行のまま、カードの行は「請求合計 − カード払いの費目 ＝ その他」（案b）。事前にはカードの**合計額**を予定で入れ、その他は自動計算。明細取込で合計は請求額どおりに確定し、店名で見つけた費目の実績も自動で入れる（見つからない分は「その他」に入る＝合計は常に正しい）。カードの記録・ふりかえり（今の楽天分析）は残す。
+
+### 段取り（PRを分ける）
+1. ✅ **新しい表を追加し、今のデータを写す**：`supabase/month_entries.sql`（オーナーが SQL Editor で実行）→ 設定タブ「データ」の **「新しい家計表へ今のデータを写す」** ボタン。予算→予定、**終わった月**の取引合計→実績（途中の月は給与明細(ocr)分だけ。途中経過の合計を「確定」扱いしないため）、カテゴリ無しは「未分類の収入／支出」、振替は除外、支出側の費目への収入（還付）は差し引く。**何度押しても安全**（新しい画面で入れた予定・手で確定した実績は上書きしない。前回写した実績(migrated)だけ更新）。既存の表には書き込まない。ロジックは `src/lib/plan/entries.ts`（テストあり）。
+2. 「今月」「見通し」の画面を作る（設定から新しい画面に切り替えて試せるようにする）。
+3. 給与取込・カード取込の結果を新しい表の実績に入れる（カード払いの費目設定＝`card_account_id`、店名→費目の対応）。
+4. メニュー整理→新しい画面を標準に→古い画面（予算・定期・支払い予定・口座配分など）を片付ける。
+

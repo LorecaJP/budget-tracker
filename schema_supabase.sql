@@ -272,3 +272,14 @@ create policy "read my household" on household_members
 -- fuyou_overrides（就労月 work_month='YYYY-MM' の見込み額の手動上書き）。
 -- RLS は世帯共有（household rw）。適用は supabase/shifts.sql（household_share.sql 適用後）。
 -- 未作成でもアプリは動く（取得は空配列フォールバック）。定義は shifts.sql 参照。
+
+-- ============================================================
+-- 新しい家計表（月 × 費目の「予定」と「実績」・作り替え中・後から追加）
+-- ------------------------------------------------------------
+-- month_entries: 1か月×1費目＝1行に planned（予定）と actual（実績）を持つ。
+--   kind = category（費目）/ card（カード引落・account_id）/ extra（その月だけの項目・name+division）。
+--   actual_source = manual / payslip / card / migrated（今のデータから写した実績）。
+-- categories.card_account_id: この費目を払っているカード口座（カード払いの内訳を二重計上しないため）。
+-- 定義・RLS・ロールバックは supabase/month_entries.sql（source of truth）。
+-- 既存の budgets / transactions は作り替え完了までそのまま使い続ける（写しは設定タブのボタン）。
+-- ============================================================

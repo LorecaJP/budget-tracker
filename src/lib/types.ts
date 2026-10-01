@@ -26,6 +26,7 @@ export interface Category {
   sort_order: number
   archived: boolean
   goal_amount?: number | null   // 貯金の目標額（貯蓄カテゴリ用・任意。列未追加なら undefined）
+  card_account_id?: string | null   // この費目を払っているカード口座（null=カード払いではない。列未追加なら undefined）
 }
 
 export interface Transaction {
@@ -64,6 +65,23 @@ export interface RakutenTx {
   person: string            // '本人' / '家族'
   category: string
   statement_month: string   // 'YYYY-MM'（請求月）
+}
+
+// 新しい家計表（month_entries）：月×費目の「予定」と「実績」を1行で持つ
+export type EntryKind = 'category' | 'card' | 'extra'      // 費目 / カード引落 / その月だけの項目
+export type EntrySource = 'manual' | 'payslip' | 'card' | 'migrated'
+export interface MonthEntry {
+  id: string
+  period_month: string          // 'YYYY-MM'（予算月）
+  kind: EntryKind
+  category_id: string | null    // kind=category
+  account_id: string | null     // kind=card（カード口座）
+  name: string | null           // kind=extra
+  division: Division | null     // kind=extra
+  planned: number | null        // 予定（円）。null=予定なし
+  actual: number | null         // 実績（円）。null=まだ予定のまま
+  actual_source: EntrySource | null
+  memo: string
 }
 
 export const DIVISION_LABELS: Record<Division, string> = {
