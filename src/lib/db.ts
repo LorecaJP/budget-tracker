@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus, RakutenTx } from './types'
+import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus, RakutenTx, MonthEntry } from './types'
+import { buildMigration, planMigration, type BudgetRow } from './plan/entries'
 
 // ---------- 取得 ----------
 export async function listAccounts(includeArchived = false): Promise<Account[]> {
@@ -385,6 +386,57 @@ export async function deleteOcrPayslipTx(date: string, person: string | null, ma
   return ids.length
 }
 
+// ---------- 新しい家計表（month_entries：月×費目の予定と実績） ----------
+// 表の作成は supabase/month_entries.sql。未作成でも取得は空配列にフォールバック。
+
+// Supabase の select は既定で最大1000行なので、全件が要るときはページ送りで取る。
+async function selectAll<T>(table: string, columns = '*'): Promise<{ data: T[]; error: string | null }> {
+  const out: T[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from(table).select(columns).order('id').range(from, from + 999)
+    if (error) return { data: out, error: error.message }
+    out.push(...((data ?? []) as T[]))
+    if (!data || data.length < 1000) return { data: out, error: null }
+  }
+}
+
+// 予算月 fromMonth〜toMonth（'YYYY-MM'、両端含む）の行を取得
+export async function listMonthEntries(fromMonth: string, toMonth: string): Promise<MonthEntry[]> {
+  const { data, error } = await supabase.from('month_entries').select('*')
+    .gte('period_month', fromMonth).lte('period_month', toMonth)
+  if (error || !data) return []
+  return data as MonthEntry[]
+}
+
+// 今のデータ（予算＝予定、取引の合計＝実績）を新しい表へ写す。何度実行しても安全
+// （新しい画面で入れた予定・手で確定した実績は上書きしない。詳細は plan/entries.ts）。
+// 既存の表（budgets / transactions など）には一切書き込まない。
+export interface MigrationResult { inserted: number; updated: number; error: string | null }
+export async function migrateToMonthEntries(userId: string, startDay: number, todayISO: string): Promise<MigrationResult> {
+  const existing = await selectAll<MonthEntry>('month_entries')
+  if (existing.error) return { inserted: 0, updated: 0, error: `新しい表が見つかりません（supabase/month_entries.sql を先に実行してください）：${existing.error}` }
+  const [cats, budgets, txs] = await Promise.all([
+    listCategories(true),
+    selectAll<BudgetRow>('budgets', 'id, category_id, period_month, amount'),
+    selectAll<Pick<Transaction, 'date' | 'amount' | 'type' | 'category_id' | 'source'>>('transactions', 'id, date, amount, type, category_id, source'),
+  ])
+  if (budgets.error || txs.error) return { inserted: 0, updated: 0, error: budgets.error ?? txs.error }
+
+  const plan = planMigration(buildMigration(budgets.data, txs.data, cats, startDay, todayISO), existing.data)
+  for (let i = 0; i < plan.inserts.length; i += 500) {
+    const rows = plan.inserts.slice(i, i + 500).map(r => ({ ...r, user_id: userId }))
+    const { error } = await supabase.from('month_entries').insert(rows)
+    if (error) return { inserted: i, updated: 0, error: error.message }
+  }
+  let updated = 0
+  for (const u of plan.updates) {
+    const { error } = await supabase.from('month_entries').update({ ...u.patch, updated_at: new Date().toISOString() }).eq('id', u.id)
+    if (error) return { inserted: plan.inserts.length, updated, error: error.message }
+    updated++
+  }
+  return { inserted: plan.inserts.length, updated, error: null }
+}
+
 // ---------- 全データ書き出し（バックアップ／分析用） ----------
 // 全テーブルを本人ぶんだけ取得して1つのJSONにまとめる（RLSで本人=世帯のデータのみ）。
 // 未作成の表はエラーになるが握りつぶして空配列にし、_errors に記録する。
@@ -392,7 +444,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
   const tables = [
     'settings', 'accounts', 'categories', 'budgets', 'recurring_rules',
     'transactions', 'special_expenses', 'scheduled_payments', 'payslip_details',
-    'rakuten_transactions', 'shifts', 'fuyou_overrides',
+    'rakuten_transactions', 'shifts', 'fuyou_overrides', 'month_entries',
   ]
   const out: Record<string, unknown> = { app: 'yutori', schema: 1, exported_at: new Date().toISOString() }
   const errors: Record<string, string> = {}

@@ -9,7 +9,7 @@
     listRecurring, upsertRecurring, deleteRecurring, postRecurringForMonth,
     listBudgets, setBudget, listTransactions, saveSettings,
     getFuyouConfig, saveFuyouConfig, setCategoryGoal, setAccountAlloc, setBudgetAllMonths,
-    exportAllData,
+    exportAllData, migrateToMonthEntries,
     type Recurring, type Budget,
   } from '../lib/db'
   import type { Account, Category, Division } from '../lib/types'
@@ -42,6 +42,23 @@
       exportMsg = '書き出しに失敗しました：' + (e instanceof Error ? e.message : String(e))
     } finally {
       exporting = false
+    }
+  }
+
+  // --- 新しい家計表へ今のデータを写す（作り替えの準備。既存データは変更しない） ---
+  let migrating = $state(false)
+  let migrateMsg = $state('')
+  async function doMigrate() {
+    migrating = true; migrateMsg = ''
+    try {
+      const r = await migrateToMonthEntries($session!.user.id, getMonthStartDay(), ymd(new Date()))
+      migrateMsg = r.error
+        ? '写せませんでした：' + r.error
+        : (r.inserted || r.updated) ? `写しました（追加 ${r.inserted}件・更新 ${r.updated}件）` : 'すでに最新です（変更なし）'
+    } catch (e) {
+      migrateMsg = '写せませんでした：' + (e instanceof Error ? e.message : String(e))
+    } finally {
+      migrating = false
     }
   }
 
@@ -308,6 +325,10 @@
   <button class="add-inline" onclick={doExport} disabled={exporting}>{exporting ? '書き出し中…' : '⬇️ データを書き出す（バックアップ／分析用 JSON）'}</button>
   {#if exportMsg}<p class="hint">{exportMsg}</p>{/if}
   <p class="hint">全データを1つのJSONファイルに書き出します。バックアップのほか、貯金の相談で共有する用にも使えます。</p>
+
+  <button class="add-inline" onclick={doMigrate} disabled={migrating}>{migrating ? '写しています…' : '新しい家計表へ今のデータを写す'}</button>
+  {#if migrateMsg}<p class="hint">{migrateMsg}</p>{/if}
+  <p class="hint">作り替え中の新しい画面（月ごとの予定と実績）の準備です。予算は「予定」、終わった月の取引の合計は「実績」として写します。今の画面やデータは変わりません。何度押しても大丈夫です（新しい画面で入れた分は上書きしません）。</p>
 
   <button class="signout" onclick={() => supabase.auth.signOut()}>サインアウト</button>
 </div>
