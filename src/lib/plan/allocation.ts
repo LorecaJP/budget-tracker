@@ -24,6 +24,7 @@ export interface PlanRule {
   category_id: string | null
   active?: boolean
   sort_order?: number
+  card_source?: 'rakuten' | null // 'rakuten'＝楽天カードの請求の合計を「実際の額」にする（作り替え④）
 }
 
 export interface BigPayment {
@@ -187,6 +188,7 @@ export interface PaymentRow {
   allocated: number | null
   status: RowStatus
   diff: number                   // 実際 − 割り当て（支払い済みで差があるとき）
+  actualFrom: 'manual' | 'card' | null   // 実際の額の出どころ（手入力 / カードの明細）
 }
 export interface BigRow {
   big: BigPayment
@@ -229,6 +231,7 @@ export interface PlanInput {
   lines: PlanLine[]
   funds: FundUse[]
   incomeActuals: IncomeActual[]
+  cardTotals?: { month: string; amount: number }[]   // 楽天カードの請求月（'YYYY-MM'＝引き落とされる月）ごとの合計
   accounts: AccountLite[]
 }
 
@@ -322,12 +325,16 @@ export function computeMonths(inp: PlanInput, from: string, to: string, carryFro
         const line = lineOf(inp.lines, key, 'payment', r.id)
         const d = r.due_day ? dueDateIn(key, r.due_day, startDay, 'out') : r.due_date ? { date: r.due_date, moved: false } : null
         const planned = line?.planned ?? r.amount
-        const actual = line?.actual ?? null
+        // 実際の額：手で入れた額があればそれ。無ければ、カードの印がある項目は引き落とされる月の請求の合計
+        const stmtKey = r.due_day != null && r.due_day >= startDay ? key : shiftKey(key, 1)
+        const card = r.card_source === 'rakuten' ? inp.cardTotals?.find(c => c.month === stmtKey)?.amount : undefined
+        const actual = line?.actual ?? card ?? null
+        const actualFrom: PaymentRow['actualFrom'] = line?.actual != null ? 'manual' : card != null ? 'card' : null
         const need = actual ?? planned
         const allocated = line?.allocated ?? null
         const paid = d != null && d.date <= inp.today
         const status = statusOf(need, allocated, actual, paid)
-        return { rule: r, date: d?.date ?? null, moved: d?.moved ?? false, planned, actual, need, allocated, status, diff: allocated != null && actual != null ? actual - allocated : 0 }
+        return { rule: r, date: d?.date ?? null, moved: d?.moved ?? false, planned, actual, need, allocated, status, diff: allocated != null && actual != null ? actual - allocated : 0, actualFrom }
       })
       .sort((a, b) => (a.date ?? '9999') < (b.date ?? '9999') ? -1 : (a.date ?? '9999') > (b.date ?? '9999') ? 1 : (a.rule.sort_order ?? 0) - (b.rule.sort_order ?? 0))
 

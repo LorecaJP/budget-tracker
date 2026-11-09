@@ -422,7 +422,7 @@ export async function listPlanRules(): Promise<PlanRule[]> {
   return (data as ScheduledPayment[]).map(r => ({
     id: r.id, name: r.name, direction: r.direction ?? 'out', amount: r.amount,
     due_day: r.due_day, due_date: r.due_date, account_id: r.account_id, category_id: r.category_id,
-    active: r.active ?? true, sort_order: r.sort_order ?? 0,
+    active: r.active ?? true, sort_order: r.sort_order ?? 0, card_source: r.card_source ?? null,
   }))
 }
 
@@ -479,14 +479,19 @@ export async function setAccountBalance(id: string, balance: number | null, date
 
 // 計算に要るものをまとめて読む（収入の実際は給与明細の取引から手取りを出す）
 export async function loadPlanInput(startDay: number, today: string): Promise<PlanInput> {
-  const [rules, bigs, lines, funds, accountsRes, catsRes, txRes] = await Promise.all([
+  const [rules, bigs, lines, funds, accountsRes, catsRes, txRes, cardRes] = await Promise.all([
     listPlanRules(), listBigPayments(), listPlanLines(), listFundUses(),
     supabase.from('accounts').select('*'),
     supabase.from('categories').select('id,name'),
     supabase.from('transactions').select('date,type,amount,category_id,person,source').eq('source', 'ocr'),
+    supabase.from('rakuten_transactions').select('statement_month,amount'),
   ])
   const names = new Map(((catsRes.data ?? []) as { id: string; name: string }[]).map(c => [c.id, c.name]))
   const incomeActuals = netIncomes((txRes.data ?? []) as TxLite[], startDay, c => (c && names.get(c)) || 'その他の収入')
   const accounts = ((accountsRes.data ?? []) as Account[]).map(a => ({ id: a.id, name: a.name, role: a.role ?? 'normal' }))
-  return { startDay, today, rules, bigs, lines, funds, incomeActuals, accounts }
+  // 楽天カードの請求月ごとの合計（表が無くても空）
+  const cardMap = new Map<string, number>()
+  for (const r of (cardRes.data ?? []) as { statement_month: string; amount: number }[]) cardMap.set(r.statement_month, (cardMap.get(r.statement_month) ?? 0) + r.amount)
+  const cardTotals = [...cardMap.entries()].map(([month, amount]) => ({ month, amount }))
+  return { startDay, today, rules, bigs, lines, funds, incomeActuals, accounts, cardTotals }
 }

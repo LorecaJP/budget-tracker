@@ -85,7 +85,7 @@
   const num = (v: string) => { const d = String(v ?? '').replace(/[^0-9]/g, ''); return d === '' ? null : Number(d) }
   function openPayment(row: PaymentRow) {
     edit = { kind: 'payment', row }
-    dPlan = String(row.planned); dAct = row.actual != null ? String(row.actual) : ''; dAlloc = row.allocated != null ? String(row.allocated) : ''
+    dPlan = String(row.planned); dAct = row.actualFrom === 'manual' && row.actual != null ? String(row.actual) : ''; dAlloc = row.allocated != null ? String(row.allocated) : ''
   }
   function openBig(row: BigRow) {
     edit = { kind: 'big', row }
@@ -94,7 +94,7 @@
   const editNeed = $derived.by(() => {
     if (!edit) return 0
     if (edit.kind === 'big') return edit.row.need
-    return num(dAct) ?? num(dPlan) ?? edit.row.planned
+    return num(dAct) ?? (edit.row.actualFrom === 'card' ? edit.row.actual : null) ?? num(dPlan) ?? edit.row.planned
   })
   async function saveEdit() {
     if (!edit || !m) return
@@ -159,11 +159,12 @@
 
   // ---------- 毎月の項目（決まり）の追加・編集 ----------
   let ruleOpen = $state(false)
-  let rId = $state<string | null>(null), rName = $state(''), rDir = $state<'out' | 'in'>('out'), rAmt = $state(''), rDay = $state(''), rAcc = $state<string | null>(null), rCat = $state<string | null>(null)
+  let rId = $state<string | null>(null), rName = $state(''), rDir = $state<'out' | 'in'>('out'), rAmt = $state(''), rDay = $state(''), rAcc = $state<string | null>(null), rCat = $state<string | null>(null), rCard = $state(false), rCardWas = $state(false)
   function openRule(row?: PaymentRow) {
     ruleOpen = true
     rId = row?.rule.id ?? null; rName = row?.rule.name ?? ''; rDir = row?.rule.direction ?? 'out'
     rAmt = row ? String(row.rule.amount) : ''; rDay = row?.rule.due_day ? String(row.rule.due_day) : ''; rAcc = row?.rule.account_id ?? null; rCat = row?.rule.category_id ?? null
+    rCard = row?.rule.card_source === 'rakuten'; rCardWas = rCard
   }
   async function saveRule() {
     if (!rName.trim()) { flash('名前を入れてください'); return }
@@ -174,6 +175,8 @@
       id: rId ?? undefined, user_id: rId ? undefined : $session?.user.id,
       name: rName.trim(), direction: rDir, amount: num(rAmt) ?? 0, due_day: day, due_date: null,
       account_id: rAcc, category_id: rCat, status: 'planned', active: true,
+      // card_source 列は plan.sql の 10) を実行してから使える。印を付けない（付けていなかった）ときは送らない＝列が無くても保存できる
+      ...(rCard || rCardWas ? { card_source: rCard && rDir === 'out' ? 'rakuten' as const : null } : {}),
     })
     busy = false
     if (res.error) { flash('保存できませんでした：' + res.error.message); return }
@@ -286,7 +289,7 @@
         <button class="row" class:first={i === 0} onclick={() => openPayment(p)}>
           <span class="line">
             <span class="date">{#if p.date}<b>{md(p.date)}</b><small>{wd(p.date)}曜</small>{:else}<b>予算</b>{/if}</span>
-            <span class="main"><span class="name">{p.rule.name}</span><span class="sub2">{accName(p.rule.account_id)}{p.moved ? '・休日のためずらす' : ''}</span></span>
+            <span class="main"><span class="name">{p.rule.name}</span><span class="sub2">{accName(p.rule.account_id)}{p.moved ? '・休日のためずらす' : ''}{p.actualFrom === 'card' ? '・明細から' : ''}</span></span>
             <span class="right"><span class="amt">{yen(p.need)}</span><span class="st {s.c}">{s.t}</span></span>
           </span>
         </button>
@@ -359,7 +362,7 @@
       {#if edit.kind === 'payment'}
         <div class="list sheetlist">
           <label class="row first"><span class="line"><span class="flabel">予定の額</span><input inputmode="numeric" bind:value={dPlan} /></span></label>
-          <label class="row"><span class="line"><span class="flabel">実際の額</span><input inputmode="numeric" placeholder="未定" bind:value={dAct} /></span></label>
+          <label class="row"><span class="line"><span class="flabel">実際の額</span><input inputmode="numeric" placeholder={edit.row.actualFrom === 'card' && edit.row.actual != null ? `明細 ${yen(edit.row.actual)}` : '未定'} bind:value={dAct} /></span></label>
         </div>
       {/if}
       <span class="sechead">{label}から</span>
@@ -429,8 +432,11 @@
         <label class="row"><span class="line"><span class="flabel">カテゴリ</span>
           <select bind:value={rCat}><option value={null}>なし</option>{#each categories.filter(c => !c.archived && (rDir === 'in' ? c.division === 'income' : c.division !== 'income')) as c}<option value={c.id}>{c.name}</option>{/each}</select>
         </span></label>
+        {#if rDir === 'out'}
+          <label class="row"><span class="line"><span class="flabel">楽天カードの明細から</span><input class="check" type="checkbox" bind:checked={rCard} /></span></label>
+        {/if}
       </div>
-      <span class="foot pad">日を空にすると、食費のような「月の予算だけ」の項目になります。月末なら 31 と入れてください。収入の項目は、カテゴリ（ゆうき給料など）を選ぶと、給与明細を取り込んだときにその手取りに置き換わります（選ばないと明細と二重に数えます）。</span>
+      <span class="foot pad">日を空にすると、食費のような「月の予算だけ」の項目になります。「楽天カードの明細から」に印を付けると、楽天カードの明細を取り込んだとき、その月に引き落とされる請求の合計が「実際の額」に入ります（割り当ては変えません）。月末なら 31 と入れてください。収入の項目は、カテゴリ（ゆうき給料など）を選ぶと、給与明細を取り込んだときにその手取りに置き換わります（選ばないと明細と二重に数えます）。</span>
       {#if rId}
         <div class="list sheetlist gap"><button class="row action del first" onclick={removeRule}><span class="line">この項目を消す</span></button></div>
       {/if}

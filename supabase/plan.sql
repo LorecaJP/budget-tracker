@@ -133,3 +133,17 @@ end $$;
 -- alter table scheduled_payments drop column if exists direction, drop column if exists sort_order, drop column if exists active;
 -- alter table scheduled_payments drop constraint if exists scheduled_payments_due_day_check;
 -- alter table scheduled_payments add  constraint scheduled_payments_due_day_check check (due_day between 1 and 28);
+-- alter table scheduled_payments drop column if exists card_source;
+
+
+-- ============================================================
+-- 10) 作り替え④（2026-11-09 追加）：カードの明細を「実際の額」につなぐ
+-- ------------------------------------------------------------
+-- card_source : 'rakuten' の項目は、その月に引き落とされる楽天カードの請求の合計
+--               （rakuten_transactions の statement_month ごとの合計）を「実際の額」として表示する。
+--               手で入れた実際の額（plan_lines.actual）があればそちらが優先。割り当ては変えない。
+-- この部分だけ後から実行してもよい（何度実行しても安全）。
+-- ============================================================
+alter table scheduled_payments add column if not exists card_source text;
+alter table scheduled_payments drop constraint if exists scheduled_payments_card_source_check;
+alter table scheduled_payments add  constraint scheduled_payments_card_source_check check (card_source in ('rakuten'));
