@@ -434,7 +434,7 @@ export async function listBigPayments(): Promise<BigPayment[]> {
     id: b.id, name: b.name, year: b.year, planned_month: b.planned_month, due_day: b.due_day ?? null,
     budget_amount: b.budget_amount, actual_amount: b.actual_amount, is_reserved: b.is_reserved,
     monthly_amount: b.monthly_amount ?? null, saved_opening: b.saved_opening ?? 0,
-    account_id: b.account_id ?? null, created_at: b.created_at,
+    account_id: b.account_id ?? null, repeat: b.repeat ?? 'once', created_at: b.created_at,
   }))
 }
 

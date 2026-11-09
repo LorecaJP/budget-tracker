@@ -38,6 +38,7 @@ export interface BigPayment {
   monthly_amount: number | null  // 毎月の積立額の手入力（null＝自動）
   saved_opening: number          // 新しい仕組みの前に貯まっていた額
   account_id: string | null
+  repeat?: Repeat                // くりかえし（once / yearly / every2y）
   created_at?: string            // 積立を始める月の目安（無ければ払う月の12か月前から）
 }
 
@@ -261,6 +262,9 @@ export function trackBig(b: BigPayment, inp: PlanInput): BigTrack {
   // 作った月より前に当てた分も積立済みに入れる
   for (const [k, v] of fundsBy) if (keyDiff(k, startKey) > 0) saved += v
   if (!b.is_reserved) return { need, savedBefore, payKey, startKey }
+  // 積立済みに足すのは、過去の月は「実際に割り当てた額」だけ（割り当てなかった月は0）。
+  // 今の月から先は見込みとして「割り当て、無ければ必要額」を足す（払う月に間に合うかの見込み用）。
+  const cur = periodOfDate(inp.today, inp.startDay)
   for (const k of keyRange(startKey, payKey)) {
     saved += fundsBy.get(k) ?? 0
     savedBefore.set(k, saved)
@@ -269,7 +273,7 @@ export function trackBig(b: BigPayment, inp: PlanInput): BigTrack {
     const auto = Math.max(0, up1000((b.budget_amount - saved) / times))
     const n = line?.planned ?? b.monthly_amount ?? auto
     need.set(k, n)
-    saved += line?.allocated ?? n
+    saved += keyDiff(k, cur) > 0 ? (line?.allocated ?? 0) : (line?.allocated ?? n)
   }
   return { need, savedBefore, payKey, startKey }
 }

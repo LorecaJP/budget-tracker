@@ -3,6 +3,7 @@
   // 計算は src/lib/plan/allocation.ts（純粋関数）。保存は db.ts（plan_lines / fund_uses / scheduled_payments / accounts）。
   // 試作：https://claude.ai/artifact/1AivyZHk9cHB2x47SAa9me
   import { onMount } from 'svelte'
+  import './plan.css'
   import { portal } from '../../lib/portal'
   import { session } from '../../lib/session'
   import { getMonthStartDay } from '../../lib/month'
@@ -459,108 +460,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  .pm {
-    --pm-bg: #F2F2F7; --pm-card: #FFFFFF; --pm-text: #000000; --pm-sec: #6C6C70; --pm-sep: #C6C6C8;
-    --pm-tint: #4F6B3A; --pm-fill: #5E7A45; --pm-barbg: #E5E5EA; --pm-bar: #7E9466;
-    --pm-ok: #248A3D; --pm-warn: #C93400; --pm-bad: #D70015;
-    margin: 0 -16px;   /* .content の左右16pxを打ち消し、試作と同じ「画面の端から16px」に */
-    padding: 6px 0 24px; color: var(--pm-text); background: var(--pm-bg); min-height: 100%;
-    font-variant-numeric: tabular-nums;
-  }
-  @media (prefers-color-scheme: dark) {
-    .pm { --pm-bg: #000000; --pm-card: #1C1C1E; --pm-text: #FFFFFF; --pm-sec: #98989F; --pm-sep: #38383A;
-      --pm-tint: #A9C48F; --pm-fill: #5E7A45; --pm-barbg: #3A3A3C; --pm-bar: #8FA876;
-      --pm-ok: #4FD06B; --pm-warn: #FF9F0A; --pm-bad: #FF6961; }
-  }
-  .state { color: var(--pm-sec); text-align: center; padding: 40px 0; }
-  .titlebar { display: flex; align-items: flex-end; justify-content: space-between; padding: 8px 20px 0; }
-  h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
-  .sub { font-size: 15px; color: var(--pm-sec); padding-bottom: 6px; }
-  .monthnav { margin: 12px 16px 0; display: flex; align-items: center; justify-content: space-between; }
-  .chev { width: 44px; height: 44px; border: 0; background: transparent; color: var(--pm-tint); display: flex; align-items: center; justify-content: center; }
-  .mtitle { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-  .mlabel { font-size: 17px; font-weight: 600; }
-  .mrange { font-size: 13px; color: var(--pm-sec); }
-  .hero { margin: 16px 16px 0; background: var(--pm-card); border-radius: 12px; padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 4px; }
-  .cap { font-size: 12px; color: var(--pm-sec); }
-  .hero > .cap { font-size: 13px; }
-  .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
-  .big.minus { color: var(--pm-bad); }
-  .pbar { height: 4px; border-radius: 2px; background: var(--pm-barbg); overflow: hidden; display: flex; margin-top: 10px; }
-  .pbar span { background: var(--pm-bar); }
-  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
-  .stats > div { display: flex; flex-direction: column; gap: 2px; }
-  .stats > div + div { position: relative; padding-left: 12px; }
-  .stats > div + div::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--pm-sep); transform: scaleX(0.5); transform-origin: 0 0; }
-  .v { font-size: 15px; font-weight: 600; }
-  .block { margin: 12px 16px 0; display: flex; flex-direction: column; gap: 8px; }
-  .filled { min-height: 50px; border: 0; border-radius: 12px; background: var(--pm-fill); color: #FFFFFF; font-size: 17px; font-weight: 600; }
-  .filled:disabled { opacity: .6; }
-  .notice { margin: 12px 16px 0; background: var(--pm-card); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; color: var(--pm-warn); }
-  .notice span { flex: 1; font-size: 15px; line-height: 1.45; color: var(--pm-text); }
-  .sechead { display: block; font-size: 13px; color: var(--pm-sec); padding: 28px 32px 7px; }
-  .foot { display: block; font-size: 13px; color: var(--pm-sec); line-height: 1.5; padding: 0 4px; }
-  .foot.pad { padding: 7px 32px 0; }
-  .foot.ok { color: var(--pm-ok); } .foot.warn { color: var(--pm-warn); }
-  .list { margin: 0 16px; background: var(--pm-card); border-radius: 12px; overflow: hidden; }
-  .row { width: 100%; display: flex; padding: 0 0 0 16px; border: 0; background: var(--pm-card); color: inherit; text-align: left; font: inherit; }
-  button.row { cursor: pointer; }
-  /* 区切り線：0.5px の border は iPhone で位置によって描かれないことがあるため、1px の線を半分に縮めて描く */
-  .line { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px 10px 0; box-sizing: border-box; font-size: 17px; }
-  .line::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--pm-sep); transform: scaleY(0.5); transform-origin: 0 0; }
-  .row.first .line::before { display: none; }
-  .row.action .line { min-height: 44px; color: var(--pm-tint); }
-  .row.action.del .line { color: var(--pm-bad); }
-  .muted { color: var(--pm-sec); min-height: 44px; }
-  .date { width: 44px; flex-shrink: 0; display: flex; flex-direction: column; }
-  .date b { font-size: 15px; font-weight: 600; }
-  .date small { font-size: 12px; color: var(--pm-sec); }
-  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .name { font-size: 17px; }
-  .sub2 { font-size: 13px; color: var(--pm-sec); }
-  .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-  .amt { font-size: 17px; white-space: nowrap; }
-  .st { font-size: 13px; white-space: nowrap; }
-  .st.sec { color: var(--pm-sec); } .st.ok { color: var(--pm-ok); } .st.warn { color: var(--pm-warn); }
-  .st.bad { color: var(--pm-bad); } .st.tint { color: var(--pm-tint); }
-
-  /* シート（body 直下へポータル） */
-  :global(.pm-back) { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.32); display: flex; align-items: flex-end; z-index: 1000; }
-  :global(.pm-toast) { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(100px + env(safe-area-inset-bottom)); padding: 10px 18px; border-radius: 22px; background: rgba(30, 30, 30, 0.9); color: #FFFFFF; font-size: 15px; z-index: 1100; max-width: 90vw; }
-  .pm-sheet {
-    --pm-bg: #F2F2F7; --pm-card: #FFFFFF; --pm-text: #000000; --pm-sec: #6C6C70; --pm-sep: #C6C6C8;
-    --pm-tint: #4F6B3A; --pm-ok: #248A3D; --pm-warn: #C93400; --pm-bad: #D70015;
-    width: 100%; max-width: 560px; margin: 0 auto; max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain;
-    background: var(--pm-bg); color: var(--pm-text); border-radius: 12px 12px 0 0;
-    padding: 6px 0 calc(28px + env(safe-area-inset-bottom)); display: flex; flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    .pm-sheet { --pm-bg: #1C1C1E; --pm-card: #2C2C2E; --pm-text: #FFFFFF; --pm-sec: #98989F; --pm-sep: #48484A;
-      --pm-tint: #A9C48F; --pm-ok: #4FD06B; --pm-warn: #FF9F0A; --pm-bad: #FF6961; }
-  }
-  .grab { width: 36px; height: 5px; border-radius: 3px; background: #C7C7CC; align-self: center; }
-  .nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 6px 8px 0; }
-  .navbtn { justify-self: start; min-height: 44px; padding: 0 8px; border: 0; background: transparent; font-size: 17px; color: var(--pm-tint); }
-  .navbtn.strong { justify-self: end; font-weight: 600; }
-  .navbtn:disabled { opacity: .5; }
-  .navtitle { font-size: 17px; font-weight: 600; text-align: center; }
-  .sheetinfo { font-size: 13px; color: var(--pm-sec); padding: 4px 20px 0; text-align: center; }
-  .sheetlist { margin-top: 20px; }
-  .sheetlist.gap { margin-top: 24px; }
-  .pm-sheet .sechead { padding-top: 22px; }
-  .pm-sheet .sechead + .sheetlist { margin-top: 0; }
-  .pm-sheet .line { min-height: 44px; }
-  .flabel { flex-shrink: 0; font-size: 17px; }
-  .pm-sheet input, .pm-sheet select {
-    flex: 1; min-width: 0; border: 0; background: transparent; text-align: right; font: inherit; font-size: 17px; color: var(--pm-text); outline: none;
-  }
-  .pm-sheet select { appearance: none; -webkit-appearance: none; text-align: right; text-align-last: right; color: var(--pm-sec); }
-  .pm-sheet input.strong { font-weight: 600; }
-  .pm-sheet input::placeholder { color: #AEAEB2; }
-  .seg2 { margin: 16px 16px 0; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
-  .seg2 button { min-height: 32px; border: 0; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 600; color: var(--pm-text); }
-  .seg2 button.on { background: var(--pm-card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
-</style>

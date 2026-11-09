@@ -91,6 +91,16 @@ describe('大きな支払い', () => {
     expect(m2[1].bigs[0].need).toBe(up1000(70000 / 3))
     expect(m2[3].payBigs[0].enough).toBe(true)
   })
+  it('過去の月で割り当てなかった分は積立済みに数えない', () => {
+    const b = big({ id: 'p', created_at: '2026-06-26T00:00:00Z', budget_amount: 60000, year: 2026, planned_month: 12, due_day: 1 })
+    // 今日 11/9 → 今の月は 2026-10。6月〜9月は割り当てなし、8月だけ 5,000 割り当て
+    const inp = base({ bigs: [b], lines: [{ period_month: '2026-08', kind: 'big', payment_id: null, special_id: 'p', planned: null, actual: null, allocated: 5000 }] })
+    const s = summarizeBigs(inp, '2026-10')[0]
+    expect(s.saved).toBe(5000)
+    expect(s.rest).toBe(55000)
+    expect(s.times).toBe(2)                                                   // 10月・11月
+    expect(s.monthly).toBe(up1000(55000 / 2))
+  })
   it('初期値・口座から当てた額・手入力の毎月額', () => {
     const b = big({ id: 'x', saved_opening: 40000, monthly_amount: 10000 })
     const inp = base({ bigs: [b], funds: [{ period_month: '2026-12', account_id: 'sbi', special_id: 'x', amount: 20000 }] })

@@ -6,6 +6,7 @@
   import Auth from './components/Auth.svelte'
   import Home from './components/Home.svelte'
   import PlanMonth from './components/plan/PlanMonth.svelte'
+  import PlanBig from './components/plan/PlanBig.svelte'
   import Transactions from './components/Transactions.svelte'
   import Reports from './components/Reports.svelte'
   import Prepare from './components/Prepare.svelte'
@@ -86,7 +87,7 @@
           {#if tab === 'home'}{#if newUi}<PlanMonth />{:else}<Home />{/if}
           {:else if tab === 'tx'}<Transactions />
           {:else if tab === 'reports'}<Reports />
-          {:else if tab === 'prepare'}<Prepare />
+          {:else if tab === 'prepare'}{#if newUi}<PlanBig />{:else}<Prepare />{/if}
           {:else if tab === 'fuyou'}<FuyouTracker />
           {:else if tab === 'settings'}<Settings />{/if}
         {/key}
@@ -103,7 +104,7 @@
       {#each tabIds as id}
         <button class="tab {tab === id ? 'active' : ''}" onclick={() => tab = id}>
           {@render tabIcon(id)}
-          <span class="tab-label">{TAB_LABELS[id]}</span>
+          <span class="tab-label">{newUi && id === 'prepare' ? '大きな支払い' : TAB_LABELS[id]}</span>
         </button>
       {/each}
     </nav>
