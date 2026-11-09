@@ -45,6 +45,9 @@
     }
   }
 
+  // ビルドした日時（日本時間）。古い版が残っていないかの確認用
+  const buildLabel = new Date(__BUILD_TIME__).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
   // --- 作り替え§12：新しい画面を試す（localStorage・端末ごと） ---
   const newUi = (() => { try { return localStorage.getItem('yutori_new_ui') === '1' } catch { return false } })()
   function toggleNewUi(on: boolean) {
@@ -322,6 +325,7 @@
   <p class="hint">全データを1つのJSONファイルに書き出します。バックアップのほか、貯金の相談で共有する用にも使えます。</p>
 
   <button class="signout" onclick={() => supabase.auth.signOut()}>サインアウト</button>
+  <p class="hint version">バージョン {buildLabel}</p>
 </div>
 
 {#if catEdit}

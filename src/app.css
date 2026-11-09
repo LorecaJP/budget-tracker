@@ -184,6 +184,26 @@ body.modal-open .content { overflow: hidden; }
 .tab.active::before { content: ""; position: absolute; inset: 2px 1px; border-radius: 18px; z-index: -1; background: var(--glass-cap); box-shadow: inset 0 1px 0 var(--glass-hi); }
 .tab-ic { width: 23px; height: 23px; }
 .tab-label { font-size: 10px; font-weight: 600; }
+/* 作り替え§12：「新しい画面を試す」がオンのときは iPhone 標準のタブバー（画面の下にぴったり・細い線・ガラスの丸い枠なし） */
+.tabbar.ios {
+  left: 0; right: 0; bottom: 0; transform: none; width: 100%; max-width: none;
+  gap: 0; padding: 6px 4px calc(2px + env(safe-area-inset-bottom, 0px)); border: 0; border-radius: 0; box-shadow: none;
+  background: rgba(249, 249, 249, 0.94);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+}
+.tabbar.ios::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: rgba(60, 60, 67, 0.29); transform: scaleY(0.5); transform-origin: 0 0; }
+.tabbar.ios .tab { border-radius: 0; padding: 2px 0 4px; gap: 2px; color: #7A7A7E; }
+.tabbar.ios .tab.active { color: #4F6B3A; }
+.tabbar.ios .tab.active::before { display: none; }
+.tabbar.ios .tab-ic { width: 26px; height: 26px; }
+.tabbar.ios .tab-label { font-weight: 500; }
+.version { text-align: center; }
+@media (prefers-color-scheme: dark) {
+  .tabbar.ios { background: rgba(22, 22, 24, 0.94); }
+  .tabbar.ios::before { background: rgba(84, 84, 88, 0.65); }
+  .tabbar.ios .tab { color: #8E8E93; }
+  .tabbar.ios .tab.active { color: #A9C48F; }
+}
 
 /* 月ナビ */
 .month-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 12px; }

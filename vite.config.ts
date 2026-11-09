@@ -58,6 +58,8 @@ const base = process.env.NODE_ENV === 'production' ? `/${repo}/` : '/'
 
 export default defineConfig({
   base,
+  // 設定画面に出す「バージョン」（ビルドした日時）。iPhone で古い版が残っていないかの確認用
+  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     svelte(),
     pdfCmaps,

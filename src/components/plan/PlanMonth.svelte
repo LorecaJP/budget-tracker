@@ -465,6 +465,7 @@
     --pm-bg: #F2F2F7; --pm-card: #FFFFFF; --pm-text: #000000; --pm-sec: #6C6C70; --pm-sep: #C6C6C8;
     --pm-tint: #4F6B3A; --pm-fill: #5E7A45; --pm-barbg: #E5E5EA; --pm-bar: #7E9466;
     --pm-ok: #248A3D; --pm-warn: #C93400; --pm-bad: #D70015;
+    margin: 0 -16px;   /* .content の左右16pxを打ち消し、試作と同じ「画面の端から16px」に */
     padding: 6px 0 24px; color: var(--pm-text); background: var(--pm-bg); min-height: 100%;
     font-variant-numeric: tabular-nums;
   }
