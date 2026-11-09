@@ -121,3 +121,14 @@
 .pm-sheet .seg3 button.on { background: var(--pm-card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 .pm-sheet input.check { flex: 0 0 auto; width: 22px; height: 22px; accent-color: var(--pm-tint); }
 .pm-sheet .row.action:disabled { opacity: .5; }
+
+/* ⑤ 年ごと */
+:is(.pm, .pm-sheet) .backbtn { display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px; margin-top: -6px; border: 0; background: transparent; font-size: 17px; color: var(--pm-tint); }
+:is(.pm, .pm-sheet) .backbtn + .titlebar { padding-top: 0; }
+:is(.pm, .pm-sheet) .segy { margin: 14px 16px 0; padding: 2px; border-radius: 9px; background: rgba(118, 118, 128, 0.12); display: grid; gap: 2px; }
+:is(.pm, .pm-sheet) .segy button { min-height: 32px; border: 0; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 600; color: var(--pm-text); }
+:is(.pm, .pm-sheet) .segy button.on { background: var(--pm-card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+:is(.pm, .pm-sheet) .stats.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:is(.pm, .pm-sheet) .ymon { width: 44px; flex-shrink: 0; font-size: 17px; font-weight: 600; }
+:is(.pm, .pm-sheet) .amt.minusc { color: var(--pm-bad); }
+:is(.pm, .pm-sheet) .amt.mutedc { color: var(--pm-sec); }
