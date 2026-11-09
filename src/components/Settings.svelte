@@ -45,6 +45,13 @@
     }
   }
 
+  // --- 作り替え§12：新しい画面を試す（localStorage・端末ごと） ---
+  const newUi = (() => { try { return localStorage.getItem('yutori_new_ui') === '1' } catch { return false } })()
+  function toggleNewUi(on: boolean) {
+    try { localStorage.setItem('yutori_new_ui', on ? '1' : '0') } catch { /* 保存できない環境では何もしない */ }
+    location.reload()
+  }
+
   // --- 全般（月の開始日） ---
   const DAYS = Array.from({ length: 28 }, (_, i) => i + 1)
   let startDay = $state(getMonthStartDay())
@@ -177,6 +184,11 @@
 
 <div class="screen">
   <h1 class="lg-title">設定</h1>
+  <div class="card">
+    <label class="check"><input type="checkbox" checked={newUi} onchange={(e) => toggleNewUi((e.currentTarget as HTMLInputElement).checked)} /> 新しい画面を試す（作り替え中）</label>
+    <p class="hint">オンにすると、ホームが新しい「今月」（給料を項目ごとに割り当てる画面）になります。この端末だけの設定で、オフにすればいつでも今の画面に戻ります。</p>
+  </div>
+
   <div class="card">
     <div class="budget-row">
       <span class="tx-name">月の開始日</span>

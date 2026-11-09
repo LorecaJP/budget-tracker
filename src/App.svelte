@@ -5,6 +5,7 @@
   import { setMonthStartDay } from './lib/month'
   import Auth from './components/Auth.svelte'
   import Home from './components/Home.svelte'
+  import PlanMonth from './components/plan/PlanMonth.svelte'
   import Transactions from './components/Transactions.svelte'
   import Reports from './components/Reports.svelte'
   import Prepare from './components/Prepare.svelte'
@@ -15,6 +16,8 @@
   type Tab = 'home' | 'tx' | 'reports' | 'prepare' | 'fuyou' | 'settings'
   let tab = $state<Tab>('home')
   let showAdd = $state(false)
+  // 作り替え§12 ②：設定で「新しい画面を試す」をオンにすると、ホームが新しい「今月」になる（localStorage・端末ごと）
+  const newUi = (() => { try { return localStorage.getItem('yutori_new_ui') === '1' } catch { return false } })()
   let key = $state(0)
   let booted = $state(false)
   let ready = $state(false)
@@ -80,7 +83,7 @@
         <p class="boot">読み込み中…</p>
       {:else}
         {#key key}
-          {#if tab === 'home'}<Home />
+          {#if tab === 'home'}{#if newUi}<PlanMonth />{:else}<Home />{/if}
           {:else if tab === 'tx'}<Transactions />
           {:else if tab === 'reports'}<Reports />
           {:else if tab === 'prepare'}<Prepare />
@@ -90,7 +93,7 @@
       {/if}
     </main>
 
-    {#if ready && (tab === 'home' || tab === 'tx')}
+    {#if ready && ((tab === 'home' && !newUi) || tab === 'tx')}
       <button class="fab" onclick={() => showAdd = true}>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>入力
       </button>
