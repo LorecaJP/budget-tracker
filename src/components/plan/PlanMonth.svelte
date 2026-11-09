@@ -49,18 +49,24 @@
   const jp = (iso: string) => `${Number(iso.slice(5, 7))}月${Number(iso.slice(8, 10))}日（${wd(iso)}）`
   const accName = (id: string | null) => (id && accounts.find(a => a.id === id)?.name) || '口座が未設定'
 
-  // 計算する範囲：一番古いデータの月〜1年先（繰り越しは一番古い月から順につなぐ）
-  const months = $derived.by<MonthResult[]>(() => {
-    if (!inp) return []
+  // 計算する範囲：一番古いデータの年の1月〜1年先の年の12月（年ごとの画面で年全体を見るため）。
+  // 繰り越しは割り当てを始めた月から（carryStartKey）。
+  const firstKey = $derived.by(() => {
+    if (!inp) return currentKey
     const keys = [
       ...inp.incomeActuals.map(x => x.period_month),
       ...inp.lines.map(x => x.period_month),
       ...inp.funds.map(x => x.period_month),
+      ...(inp.cardTotals ?? []).map(x => x.month),
       currentKey,
     ]
-    const from = keys.reduce((a, b) => (keyDiff(a, b) < 0 ? b : a))
-    const to = shiftKey(currentKey, 12)
-    return computeMonths(inp, keyDiff(from, key) < 0 ? key : from, keyDiff(key, to) < 0 ? key : to, carryStartKey(inp, currentKey))
+    return keys.reduce((a, b) => (keyDiff(a, b) < 0 ? b : a))
+  })
+  const firstYear = $derived(Math.min(parseKey(firstKey).y, parseKey(key).y))
+  const lastYear = $derived(Math.max(parseKey(shiftKey(currentKey, 12)).y, parseKey(key).y))
+  const months = $derived.by<MonthResult[]>(() => {
+    if (!inp) return []
+    return computeMonths(inp, `${firstYear}-01`, `${lastYear}-12`, carryStartKey(inp, currentKey))
   })
   const m = $derived(months.find(x => x.key === key) ?? null)
   const label = $derived(`${parseKey(key).m}月${startDay}日の給料`)
@@ -204,12 +210,67 @@
 
   const ratio = $derived(m && m.sources > 0 ? Math.max(0, Math.min(100, Math.round(m.allocSum / m.sources * 100))) : 0)
   const hasSalary = $derived(accounts.some(a => a.role === 'salary'))
+
+  // ---------- 年ごとの画面（作り替え⑤） ----------
+  let view = $state<'month' | 'year'>('month')
+  let yr = $state(parseKey(currentKey).y)
+  // 過去の月で、明細・割り当て・実際の額の記録が1つも無い月は「記録なし」（決まりの額だけで数えると実際と違うため年の合計にも入れない）
+  function hasRecord(x: MonthResult): boolean {
+    return x.incomes.some(i => i.actual != null) || x.payments.some(p => p.actual != null || p.allocated != null)
+      || x.bigs.some(b => b.allocated != null) || x.fundIn > 0
+  }
+  const yearData = $derived.by(() => {
+    const rows = months.filter(x => parseKey(x.key).y === yr).map(x => {
+      const past = keyDiff(x.key, currentKey) > 0
+      const empty = past && !hasRecord(x)
+      return { m: x, past, empty, income: x.incomeSum, out: x.needSum, diff: x.incomeSum - x.needSum }
+    })
+    const counted = rows.filter(r => !r.empty)
+    const income = counted.reduce((a, r) => a + r.income, 0), out = counted.reduce((a, r) => a + r.out, 0)
+    return { rows, income, out, diff: income - out }
+  })
+  const years = $derived(Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i))
+  function openYear() { yr = parseKey(key).y; view = 'year' }
+  function openMonth(k: string) { key = k; view = 'month' }
 </script>
 
 <div class="pm">
   {#if loading}
     <p class="state">読み込み中…</p>
+  {:else if view === 'year'}
+    <div class="titlebar"><h1>{yr}年</h1></div>
+    <div class="segy" style="grid-template-columns: repeat({years.length}, minmax(0, 1fr))">
+      {#each years as y}<button class:on={y === yr} onclick={() => yr = y}>{y}年</button>{/each}
+    </div>
+    <div class="hero">
+      <span class="cap">1年の差し引き</span>
+      <span class="big" class:minus={yearData.diff < 0}>{yearData.diff >= 0 ? '+' : ''}{yen(yearData.diff)}</span>
+      <div class="stats two">
+        <div><span class="cap">入ったお金・入る予定</span><span class="v">{yen(yearData.income)}</span></div>
+        <div><span class="cap">出たお金・出る予定</span><span class="v">{yen(yearData.out)}</span></div>
+      </div>
+    </div>
+    <span class="sechead">月ごと（給料日で区切った月）</span>
+    <div class="list">
+      {#each yearData.rows as r, i}
+        <button class="row" class:first={i === 0} onclick={() => openMonth(r.m.key)}>
+          <span class="line">
+            <span class="ymon">{parseKey(r.m.key).m}月</span>
+            <span class="main">
+              <span class="sub2">{md(r.m.range.start)}〜{md(r.m.range.end)}{r.m.key === currentKey ? '・今回' : ''}</span>
+              <span class="sub2">{r.empty ? '記録なし' : `入 ${yen(r.income)}・出 ${yen(r.out)}${r.past ? '' : '（予定を含む）'}`}</span>
+            </span>
+            <span class="amt" class:minusc={!r.empty && r.diff < 0} class:mutedc={r.empty}>{r.empty ? '—' : `${r.diff >= 0 ? '+' : ''}${yen(r.diff)}`}</span>
+            <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C4C4C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>
+          </span>
+        </button>
+      {/each}
+    </div>
+    <span class="foot pad">出たお金は、実際の額が分かる項目は実際の額、それ以外は予定の額で数えています。明細も割り当ても無い過去の月は「記録なし」で、合計に入れていません。月をタップすると中身が見られます。</span>
   {:else if m}
+    <button class="backbtn" onclick={openYear}>
+      <svg width="12" height="20" viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2L2 10l8 8"/></svg>{parseKey(key).y}年
+    </button>
     <div class="titlebar">
       <h1>今月</h1>
       <span class="sub">{badge}</span>
