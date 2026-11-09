@@ -80,6 +80,8 @@
    │  └─ rakuten/
    │     └─ parse.ts       #   楽天カード請求明細PDFのパーサ＋店名→カード利用カテゴリ自動判定（§6末）
    └─ components/
+      ├─ plan/
+      │  └─ PlanMonth.svelte   # 作り替え§12 ②「今月」：使えるお金（収入・繰り越し・貯金から）を毎月の支出・大きな支払いの積立に割り当てる。行の編集（予定・実際・割り当て）・一括割り当て・毎月の項目の追加/編集（収入はカテゴリを付けると明細の手取りに置き換わる）・口座の役割・移す額。設定の「新しい画面を試す」（localStorage `yutori_new_ui`）でホームがこれになる
       ├─ Auth.svelte
       ├─ TxIcon.svelte          # 取引の種別/会計区分→色、カテゴリ名→アイコンの色つき丸（食費=食器/電気=雷/水道=雫/家賃=家/携帯=スマホ/保険=盾/ジム=運動/交通=バス/おこづかい=財布/交際=人/日用品=袋/貯金=ブタ/税=レシート 等。Home/Transactions で共用）
       ├─ Home.svelte            # 「今月まるごと」ダッシュボード＝MonthlyBreakdown を表示＋貯金の目標カード
@@ -339,16 +341,22 @@ npm run build            # 本番ビルド確認
 | 段階 | 内容 | 終わりの目安 |
 |---|---|---|
 | ① データの入れ物 ✅ | Supabase に割り当ての表を足す（SQL ファイルをオーナーが実行）。案：毎月の項目は `scheduled_payments` を広げて使う（収入/支出・日付なし＝予算だけ、を持てるように）、大きな支払いは `special_expenses` を広げる（日・積立額の手入力・くりかえし＝毎年/2年ごと/1回）、**月×項目の割り当て表**（予定・実際・割り当て）と**口座から使う額の表**を新設、`accounts` に「給料の受取／割り当てに使える」の役割を足す。既存の表・データは壊さない。ロジックは純粋関数＋単体テスト | 表があり、テストが通る |
-| ② 今月の画面 | 試作の「今月」を実装（設定から新しい画面に切り替えて試せるようにする） | 実データで1か月分の割り当てができる |
+| ② 今月の画面 ✅ | 試作の「今月」を実装（設定から新しい画面に切り替えて試せるようにする） | 実データで1か月分の割り当てができる |
 | ③ 大きな支払いの画面 | 試作の「大きな支払い」を実装。今の特別費の毎年の項目を引き継ぐ | 項目ごとの積立済み/あとが出る |
 | ④ 取込をつなぐ | 給与明細→「使えるお金」の確定、楽天明細→カードの「実際の額」。割り当ては変えない | 明細を入れると実際の額が入る |
 | ⑤ 年ごとの画面 | 全部の月の振り返りと年の切り替え | 過去の月がすべて見られる |
 | ⑥ 切り替えと片付け | 新しい画面を標準にし、タブを4つに。古い画面（ホームの予実・予算・定期・支払い予定・口座配分など）を片付ける。扶養の週20時間の反映 | 古い入口が無くなる |
 
 ### 進み具合
-- ① 2026-11-09：`supabase/plan.sql`（列の追加＋`plan_lines`・`fund_uses`）、計算 `src/lib/plan/allocation.ts`＋テスト、`db.ts` の読み書き（`listPlanRules` / `listBigPayments` / `listPlanLines` / `savePlanLine` / `listFundUses` / `saveFundUse` / `setAccountRole` / `setAccountBalance` / `loadPlanInput`）。**オーナーが Supabase で plan.sql を実行するまで、新しい表は空**（今の画面には影響なし）。
+- ① 2026-11-09：`supabase/plan.sql`（列の追加＋`plan_lines`・`fund_uses`）、計算 `src/lib/plan/allocation.ts`＋テスト、`db.ts` の読み書き（`listPlanRules` / `listBigPayments` / `listPlanLines` / `savePlanLine` / `listFundUses` / `saveFundUse` / `setAccountRole` / `setAccountBalance` / `loadPlanInput`）。**本番DBに plan.sql を適用済み（2026-11-09。既存データは変わらず）。**
 - オーナーの決定（2026-11-09）：**過去の月も新しい仕組みで扱う**（使い始める月の区切りは作らない。過去の月も割り当て・実際の額を直せる）。データの直し（楽天口座の種類・特別費に入っている楽天カードの請求）は**後で**。
-- 次は ②「今月」の画面。
+- ② 2026-11-09：`src/components/plan/PlanMonth.svelte`。**設定の一番上「新しい画面を試す（作り替え中）」をオン**にすると（`localStorage.yutori_new_ui='1'`・端末ごと）、ホームが新しい「今月」になる（入力ボタンは出さない）。オフで今の画面に戻る。
+  - **繰り越しは割り当てを始めた月から**（`carryStartKey`＝plan_lines / fund_uses がある一番古い月。無ければ今の月）。それより前の月は繰り越し0（割り当て前の過去の月の必要額を借りとして積み上げないため。実データで −29万円の繰り越しが出たので直した）。
+  - 収入の項目（`scheduled_payments.direction='in'`）は**カテゴリ（ゆうき給料など）を付けると、明細の手取りに置き換わる**。付けないと明細と二重に数える。
+  - 確認：実データ（書き出しJSON）を Supabase の代わりに返すモックで画面を撮って確認（割り当て・実際の額・差の表示）。スクリプトはリポジトリに入れていない（家計の実データを使うため）。
+- 次は ③「大きな支払い」の画面。
+
+- **SQL は Claude が実行できる**：クラウド環境の Network secrets に `api.supabase.com` の Supabase アクセストークン（yutori プロジェクトのみ・Database: Read-write）が保存されている。`curl -X POST https://api.supabase.com/v1/projects/hmmgvqoemblxqqivspvl/database/query -H 'Content-Type: application/json' -d '{"query":"..."}'`（認証ヘッダーはプロキシが付ける。自分で付けない）。本番DBなので、変更の前に何をするかオーナーに伝えること。
 
 ### オーナーに用意してもらうもの（並行）
 - 住信SBIの貯金の今の残高（できれば項目ごと）

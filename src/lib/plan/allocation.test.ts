@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   monthKey, shiftKey, keyDiff, keyRange, periodOfDate, periodRange, dueDateIn,
-  bigPayKey, bigStartKey, netIncomes, computeMonths, summarizeBigs, yearRows, up1000,
+  bigPayKey, bigStartKey, netIncomes, computeMonths, summarizeBigs, yearRows, up1000, carryStartKey,
   type PlanInput, type PlanRule, type BigPayment,
 } from './allocation'
 
@@ -156,6 +156,13 @@ describe('1か月の計算と繰り越し', () => {
     const [m] = computeMonths(inp, '2027-03', '2027-03')
     expect(m.incomes.map(i => i.name)).toEqual(['ゆうき給料', 'ボーナス'])
     expect(m.payments.find(p => p.rule.id === 'old')).toBeUndefined()
+  })
+  it('繰り越しは割り当てを始めた月から（それより前の未割り当ては借りにしない）', () => {
+    const inp = base({ rules, lines: [{ period_month: '2026-11', kind: 'payment', payment_id: 'rent', special_id: null, planned: null, actual: null, allocated: 75920 }] })
+    expect(carryStartKey(inp, '2026-10')).toBe('2026-11')
+    expect(carryStartKey(base({ rules }), '2026-10')).toBe('2026-10')
+    const m = computeMonths(inp, '2026-08', '2026-12', carryStartKey(inp, '2026-10'))
+    expect(m.map(x => x.carryIn)).toEqual([0, 0, 0, 0, m[3].sources - m[3].allocSum - m[3].rest])
   })
   it('年ごとのまとめ', () => {
     const m = computeMonths(base({ rules }), '2026-11', '2027-02')

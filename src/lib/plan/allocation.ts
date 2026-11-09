@@ -274,8 +274,15 @@ export function trackBig(b: BigPayment, inp: PlanInput): BigTrack {
   return { need, savedBefore, payKey, startKey }
 }
 
-// 月の並び（from〜to）を、繰り越しをつなげて計算する。最初の月の繰り越しは 0。
-export function computeMonths(inp: PlanInput, from: string, to: string): MonthResult[] {
+// 月の並び（from〜to）を、繰り越しをつなげて計算する。
+// 繰り越しは carryFrom の月から始める（それより前の月は繰り越し 0・次へも渡さない）。
+// 割り当てを始める前の過去の月は「割り当てなかった必要額」を借りとして積み上げてしまうため、
+// 呼び出し側は「割り当て（plan_lines / fund_uses）がある一番古い月、無ければ今の月」を渡す。
+export function carryStartKey(inp: PlanInput, currentKey: string): string {
+  const keys = [...inp.lines.map(l => l.period_month), ...inp.funds.map(f => f.period_month)]
+  return keys.length ? keys.reduce((a, b) => (keyDiff(a, b) < 0 ? b : a)) : currentKey
+}
+export function computeMonths(inp: PlanInput, from: string, to: string, carryFrom: string = from): MonthResult[] {
   const { startDay } = inp
   const salaryAcc = inp.accounts.find(a => a.role === 'salary')?.id ?? null
   const tracks = new Map<string, BigTrack>()
@@ -283,6 +290,7 @@ export function computeMonths(inp: PlanInput, from: string, to: string): MonthRe
   const out: MonthResult[] = []
   let carry = 0
   for (const key of keyRange(from, to)) {
+    if (keyDiff(key, carryFrom) >= 0) carry = 0   // 繰り越しを始める月まで（その月を含む）は 0 から
     // 収入：決まり(in)ごとに、明細の実際があれば実際
     const incomes: IncomeRow[] = []
     const used = new Set<string>()
