@@ -491,7 +491,8 @@
   .pbar span { background: var(--pm-bar); }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
   .stats > div { display: flex; flex-direction: column; gap: 2px; }
-  .stats > div + div { padding-left: 12px; border-left: 0.5px solid var(--pm-sep); }
+  .stats > div + div { position: relative; padding-left: 12px; }
+  .stats > div + div::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--pm-sep); transform: scaleX(0.5); transform-origin: 0 0; }
   .v { font-size: 15px; font-weight: 600; }
   .block { margin: 12px 16px 0; display: flex; flex-direction: column; gap: 8px; }
   .filled { min-height: 50px; border: 0; border-radius: 12px; background: var(--pm-fill); color: #FFFFFF; font-size: 17px; font-weight: 600; }
@@ -505,8 +506,10 @@
   .list { margin: 0 16px; background: var(--pm-card); border-radius: 12px; overflow: hidden; }
   .row { width: 100%; display: flex; padding: 0 0 0 16px; border: 0; background: var(--pm-card); color: inherit; text-align: left; font: inherit; }
   button.row { cursor: pointer; }
-  .line { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px 10px 0; box-sizing: border-box; border-top: 0.5px solid var(--pm-sep); font-size: 17px; }
-  .row.first .line { border-top: 0; }
+  /* 区切り線：0.5px の border は iPhone で位置によって描かれないことがあるため、1px の線を半分に縮めて描く */
+  .line { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px 10px 0; box-sizing: border-box; font-size: 17px; }
+  .line::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--pm-sep); transform: scaleY(0.5); transform-origin: 0 0; }
+  .row.first .line::before { display: none; }
   .row.action .line { min-height: 44px; color: var(--pm-tint); }
   .row.action.del .line { color: var(--pm-bad); }
   .muted { color: var(--pm-sec); min-height: 44px; }
