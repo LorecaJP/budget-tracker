@@ -99,7 +99,7 @@
       </button>
     {/if}
 
-    <nav class="tabbar">
+    <nav class="tabbar" class:ios={newUi}>
       {#each tabIds as id}
         <button class="tab {tab === id ? 'active' : ''}" onclick={() => tab = id}>
           {@render tabIcon(id)}
