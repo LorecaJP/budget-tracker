@@ -272,3 +272,13 @@ create policy "read my household" on household_members
 -- fuyou_overrides（就労月 work_month='YYYY-MM' の見込み額の手動上書き）。
 -- RLS は世帯共有（household rw）。適用は supabase/shifts.sql（household_share.sql 適用後）。
 -- 未作成でもアプリは動く（取得は空配列フォールバック）。定義は shifts.sql 参照。
+
+-- ============================================================
+-- 作り替え§12：割り当て（後から追加）
+-- ------------------------------------------------------------
+-- scheduled_payments に direction / sort_order / active（due_day は 1-31 に拡大）、
+-- special_expenses に due_day / repeat / monthly_amount / saved_opening / account_id、
+-- accounts に role / balance / balance_date を追加し、
+-- plan_lines（月×項目の 予定・実際・割り当て）と fund_uses（口座から使う額）を新設。
+-- 定義と適用手順は supabase/plan.sql。未適用でもアプリは動く（新しい画面が空になるだけ）。
+-- ============================================================
