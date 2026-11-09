@@ -61,6 +61,7 @@ export interface ScheduledPayment {
   memo: string
   // 作り替え§12（plan.sql で追加。未適用なら undefined＝out / 0 / true とみなす）
   direction?: Direction   // out=支払い / in=収入
+  card_source?: 'rakuten' | null   // 作り替え④：楽天カードの請求の合計を実際の額に（plan.sql 10）。未適用なら undefined
   sort_order?: number
   active?: boolean
 }

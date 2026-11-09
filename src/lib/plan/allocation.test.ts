@@ -174,6 +174,23 @@ describe('1か月の計算と繰り越し', () => {
     const m = computeMonths(inp, '2026-08', '2026-12', carryStartKey(inp, '2026-10'))
     expect(m.map(x => x.carryIn)).toEqual([0, 0, 0, 0, m[3].sources - m[3].allocSum - m[3].rest])
   })
+  it('カードの印がある項目は、引き落とされる月の請求の合計を実際の額にする（手入力が優先・割り当ては変えない）', () => {
+    const card = rule({ id: 'rk', name: '楽天カード', amount: 180000, due_day: 27, account_id: 'rk', card_source: 'rakuten' })
+    const cardTotals = [{ month: '2026-10', amount: 188400 }, { month: '2026-11', amount: 170000 }]
+    const inp = base({ rules: [card], cardTotals, lines: [
+      { period_month: '2026-10', kind: 'payment', payment_id: 'rk', special_id: null, planned: null, actual: null, allocated: 180000 },
+      { period_month: '2026-11', kind: 'payment', payment_id: 'rk', special_id: null, planned: null, actual: 175000, allocated: null },
+    ] })
+    const m = computeMonths(inp, '2026-10', '2026-12')
+    expect(m[0].payments[0].actual).toBe(188400)
+    expect(m[0].payments[0].actualFrom).toBe('card')
+    expect(m[0].payments[0].allocated).toBe(180000)
+    expect(m[0].diffSum).toBe(8400)
+    expect(m[1].payments[0].actual).toBe(175000)                              // 手入力が優先
+    expect(m[1].payments[0].actualFrom).toBe('manual')
+    expect(m[2].payments[0].actual).toBeNull()                                // 明細がまだ
+    expect(m[2].payments[0].need).toBe(180000)
+  })
   it('年ごとのまとめ', () => {
     const m = computeMonths(base({ rules }), '2026-11', '2027-02')
     const y = yearRows(m, 2027)
