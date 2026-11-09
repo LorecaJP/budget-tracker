@@ -346,9 +346,11 @@ npm run build            # 本番ビルド確認
 | ⑥ 切り替えと片付け | 新しい画面を標準にし、タブを4つに。古い画面（ホームの予実・予算・定期・支払い予定・口座配分など）を片付ける。扶養の週20時間の反映 | 古い入口が無くなる |
 
 ### 進み具合
-- ① 2026-11-09：`supabase/plan.sql`（列の追加＋`plan_lines`・`fund_uses`）、計算 `src/lib/plan/allocation.ts`＋テスト、`db.ts` の読み書き（`listPlanRules` / `listBigPayments` / `listPlanLines` / `savePlanLine` / `listFundUses` / `saveFundUse` / `setAccountRole` / `setAccountBalance` / `loadPlanInput`）。**オーナーが Supabase で plan.sql を実行するまで、新しい表は空**（今の画面には影響なし）。
+- ① 2026-11-09：`supabase/plan.sql`（列の追加＋`plan_lines`・`fund_uses`）、計算 `src/lib/plan/allocation.ts`＋テスト、`db.ts` の読み書き（`listPlanRules` / `listBigPayments` / `listPlanLines` / `savePlanLine` / `listFundUses` / `saveFundUse` / `setAccountRole` / `setAccountBalance` / `loadPlanInput`）。**本番DBに plan.sql を適用済み（2026-11-09。既存データは変わらず）。**
 - オーナーの決定（2026-11-09）：**過去の月も新しい仕組みで扱う**（使い始める月の区切りは作らない。過去の月も割り当て・実際の額を直せる）。データの直し（楽天口座の種類・特別費に入っている楽天カードの請求）は**後で**。
 - 次は ②「今月」の画面。
+
+- **SQL は Claude が実行できる**：クラウド環境の Network secrets に `api.supabase.com` の Supabase アクセストークン（yutori プロジェクトのみ・Database: Read-write）が保存されている。`curl -X POST https://api.supabase.com/v1/projects/hmmgvqoemblxqqivspvl/database/query -H 'Content-Type: application/json' -d '{"query":"..."}'`（認証ヘッダーはプロキシが付ける。自分で付けない）。本番DBなので、変更の前に何をするかオーナーに伝えること。
 
 ### オーナーに用意してもらうもの（並行）
 - 住信SBIの貯金の今の残高（できれば項目ごと）
