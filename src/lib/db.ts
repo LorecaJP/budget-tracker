@@ -1,5 +1,9 @@
 import { supabase } from './supabase'
 import type { Account, Category, Transaction, Division, TxType, ScheduledPayment, ScheduledStatus, RakutenTx } from './types'
+import type { Repeat, AccountRole } from './types'
+import {
+  netIncomes, type PlanInput, type PlanLine, type FundUse, type PlanRule, type BigPayment, type TxLite,
+} from './plan/allocation'
 
 // ---------- 取得 ----------
 export async function listAccounts(includeArchived = false): Promise<Account[]> {
@@ -182,6 +186,9 @@ export async function postRecurringForMonth(year: number, month: number, startDa
 export interface SpecialExpense {
   id: string; name: string; year: number; planned_month: number
   budget_amount: number; actual_amount: number | null; is_reserved: boolean
+  // 作り替え§12（plan.sql で追加。未適用なら undefined）
+  due_day?: number | null; repeat?: Repeat; monthly_amount?: number | null
+  saved_opening?: number; account_id?: string | null; created_at?: string
 }
 export async function listSpecialExpenses(year: number): Promise<SpecialExpense[]> {
   const { data } = await supabase.from('special_expenses').select('*')
@@ -392,7 +399,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
   const tables = [
     'settings', 'accounts', 'categories', 'budgets', 'recurring_rules',
     'transactions', 'special_expenses', 'scheduled_payments', 'payslip_details',
-    'rakuten_transactions', 'shifts', 'fuyou_overrides',
+    'rakuten_transactions', 'shifts', 'fuyou_overrides', 'plan_lines', 'fund_uses',
   ]
   const out: Record<string, unknown> = { app: 'yutori', schema: 1, exported_at: new Date().toISOString() }
   const errors: Record<string, string> = {}
@@ -403,4 +410,83 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
   }
   if (Object.keys(errors).length) out._errors = errors
   return out
+}
+
+// ---------- 作り替え§12：割り当て（plan.sql） ----------
+// 表・列が未適用でも動く：取得は空配列／既定値にフォールバック（新しい画面が空になるだけ）。
+
+// 毎月の項目の決まり（scheduled_payments を広げて使う）。新しい列が無ければ既定値で埋める
+export async function listPlanRules(): Promise<PlanRule[]> {
+  const { data, error } = await supabase.from('scheduled_payments').select('*')
+  if (error || !data) return []
+  return (data as ScheduledPayment[]).map(r => ({
+    id: r.id, name: r.name, direction: r.direction ?? 'out', amount: r.amount,
+    due_day: r.due_day, due_date: r.due_date, account_id: r.account_id, category_id: r.category_id,
+    active: r.active ?? true, sort_order: r.sort_order ?? 0,
+  }))
+}
+
+// 大きな支払い（special_expenses を広げて使う。全部の年）
+export async function listBigPayments(): Promise<BigPayment[]> {
+  const { data, error } = await supabase.from('special_expenses').select('*')
+  if (error || !data) return []
+  return (data as SpecialExpense[]).map(b => ({
+    id: b.id, name: b.name, year: b.year, planned_month: b.planned_month, due_day: b.due_day ?? null,
+    budget_amount: b.budget_amount, actual_amount: b.actual_amount, is_reserved: b.is_reserved,
+    monthly_amount: b.monthly_amount ?? null, saved_opening: b.saved_opening ?? 0,
+    account_id: b.account_id ?? null, created_at: b.created_at,
+  }))
+}
+
+export async function listPlanLines(): Promise<PlanLine[]> {
+  const { data, error } = await supabase.from('plan_lines').select('*').order('period_month')
+  if (error || !data) return []
+  return data as PlanLine[]
+}
+
+// 月×項目の行を保存する。同じ月・同じ項目の行が世帯内にあれば更新（2行にしない）。
+// planned/actual/allocated に null を渡すと「決まりの額」「まだ」「未割り当て」に戻る。
+export async function savePlanLine(line: Omit<PlanLine, 'id'>) {
+  let q = supabase.from('plan_lines').select('id').eq('period_month', line.period_month).eq('kind', line.kind)
+  q = line.kind === 'payment' ? q.eq('payment_id', line.payment_id!) : q.eq('special_id', line.special_id!)
+  const { data: found, error } = await q.limit(1)
+  if (error) return { error }
+  const row = { ...line, updated_at: new Date().toISOString() }
+  if (found && found.length) return supabase.from('plan_lines').update(row).eq('id', found[0].id)
+  return supabase.from('plan_lines').insert(row)
+}
+
+export async function listFundUses(): Promise<FundUse[]> {
+  const { data, error } = await supabase.from('fund_uses').select('*').order('period_month')
+  if (error || !data) return []
+  return data as FundUse[]
+}
+export async function saveFundUse(f: FundUse) {
+  if (f.id) return supabase.from('fund_uses').update(f).eq('id', f.id)
+  return supabase.from('fund_uses').insert(f)
+}
+export async function deleteFundUse(id: string) {
+  return supabase.from('fund_uses').delete().eq('id', id)
+}
+
+// 口座の役割と残高
+export async function setAccountRole(id: string, role: AccountRole) {
+  return supabase.from('accounts').update({ role }).eq('id', id)
+}
+export async function setAccountBalance(id: string, balance: number | null, date: string | null) {
+  return supabase.from('accounts').update({ balance, balance_date: date }).eq('id', id)
+}
+
+// 計算に要るものをまとめて読む（収入の実際は給与明細の取引から手取りを出す）
+export async function loadPlanInput(startDay: number, today: string): Promise<PlanInput> {
+  const [rules, bigs, lines, funds, accountsRes, catsRes, txRes] = await Promise.all([
+    listPlanRules(), listBigPayments(), listPlanLines(), listFundUses(),
+    supabase.from('accounts').select('*'),
+    supabase.from('categories').select('id,name'),
+    supabase.from('transactions').select('date,type,amount,category_id,person,source').eq('source', 'ocr'),
+  ])
+  const names = new Map(((catsRes.data ?? []) as { id: string; name: string }[]).map(c => [c.id, c.name]))
+  const incomeActuals = netIncomes((txRes.data ?? []) as TxLite[], startDay, c => (c && names.get(c)) || 'その他の収入')
+  const accounts = ((accountsRes.data ?? []) as Account[]).map(a => ({ id: a.id, name: a.name, role: a.role ?? 'normal' }))
+  return { startDay, today, rules, bigs, lines, funds, incomeActuals, accounts }
 }

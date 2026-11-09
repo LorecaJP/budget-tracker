@@ -33,7 +33,7 @@
 - PWA: **`vite-plugin-pwa`**（Workbox。manifest + Service Worker を自動生成。`registerType: 'autoUpdate'`）
 - PDF処理: **`pdfjs-dist`（legacy ビルド）**。給与明細PDFのテキスト抽出・スキャンの画像化に使用（§6・§8の注意点に注意）。
 - スキャンOCR: **Azure Document Intelligence（prebuilt-layout）** を Supabase Edge Function `payslip-ocr` 経由で呼ぶ。
-- ビルド: `npm run build`（= `vite build`）。型チェック: `npm run check`。`npm run dev` でローカル開発。
+- ビルド: `npm run build`（= `vite build`）。型チェック: `npm run check`。単体テスト: `npm test`（= `vitest run`。deploy.yml でもビルド前に実行＝テストが落ちるとデプロイされない）。`npm run dev` でローカル開発。
 
 ---
 
@@ -50,7 +50,10 @@
 ├─ .github/workflows/keepalive.yml# Supabase無料枠の自動停止を防ぐ定期ping（毎日。§8・§10）
 ├─ public/                 # favicon.svg, icons.svg, PWAアイコン(pwa-*.png, apple-touch-icon.png, maskable)
 ├─ supabase/
-│  └─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
+│  ├─ functions/payslip-ocr/   # Azure OCR を呼ぶ Edge Function（Deno）。index.ts + README.md
+│  ├─ household_share.sql      # 世帯共有（えみ専用ログイン）の適用・連携・ロールバック
+│  ├─ shifts.sql               # シフト・見込み（扶養）
+│  └─ plan.sql                 # 作り替え§12：割り当ての入れ物（列の追加＋plan_lines / fund_uses）
 └─ src/
    ├─ main.ts
    ├─ App.svelte           # タブ構成（6タブ）・認証ゲート・起動時に設定読込→シード→描画。分析/年間/楽天は「ふりかえり」(Reports)、支払い/特別費は「そなえ」(Prepare)にセグメントで集約
@@ -65,6 +68,9 @@
    │  ├─ ics.ts            # iPhone純正カレンダーへの追加（.ics 生成→iOSの「カレンダーに追加」起動）。OAuth/サーバ不要。ShiftCalendar の「この月をカレンダーに追加」で使用
    │  ├─ seed.ts           # 初回サインイン時の初期データ投入（口座・カテゴリ）
    │  ├─ db.ts             # 全テーブルの取得・CRUDヘルパー（ここに集約）。設定の get/save も
+   │  ├─ plan/
+   │  │  ├─ allocation.ts  #   作り替え§12の計算（純粋関数）：月の区切り・休日・手取り・割り当て・繰り越し・大きな支払いの積立・年のまとめ
+   │  │  └─ allocation.test.ts # 上記の単体テスト（vitest）
    │  ├─ payslip/          # 給与・賞与PDF取込（§6）
    │  │  ├─ types.ts       #   ParsedPayslip 型（kind: salary/bonus 等）
    │  │  ├─ extract.ts     #   pdf.js でテキスト抽出 / 全ページ行復元(extractPdfRows) / 画像化（Safari対応は §8）
@@ -115,6 +121,14 @@
 
 - **shifts**（えみの予定シフト・**扶養計画/見込み用**・後から追加した表）: work_date(就労日), start_min/end_min(0時からの分), break_min(休憩分), person('えみ'), memo。**見込み課税収入＝Σ(時間)×時給**の元。**将来の Google カレンダー連携（方式2 ワンタップ同期）でもこの shifts を使う**。RLS は世帯共有。未作成でも空配列フォールバック。適用は `supabase/shifts.sql`。
 - **fuyou_overrides**（見込み額の手動上書き・後から追加した表）: person, work_month('YYYY-MM'＝就労月), amount(見込み課税額)。シフトからの自動見込みを手で上書きする（残業・早上がりのズレ調整）。`unique(user_id, person, work_month)`。`setFuyouOverride` は世帯内の既存行を更新（0/null で削除＝自動に戻す）。未作成でも動く。
+
+- **作り替え§12（割り当て）で足したもの**（`supabase/plan.sql`。未適用でも動く）:
+  - `scheduled_payments` ＝**毎月の項目の決まり**として使う：`direction`（out=支払い / in=収入）・`sort_order`・`active`。`due_day` は 1-31（その月に無い日は月末）。`due_day` も `due_date` も空＝**予算だけ**（食費など）。
+  - `special_expenses` ＝**大きな支払い**として使う：`due_day`（空＝日にち未定）・`repeat`（once/yearly/every2y）・`monthly_amount`（毎月の積立の手入力・空＝自動）・`saved_opening`（前から貯まっていた額）・`account_id`。
+  - `accounts`：`role`（normal / salary＝給料の受け取り / savings＝割り当てに使える貯金）・`balance`・`balance_date`。
+  - **plan_lines**（新）：月（`period_month`='YYYY-MM'＝25日始まりの月）×項目（`kind`=payment→`payment_id` / big→`special_id`）の `planned`（空＝決まりの額）・`actual`（空＝まだ）・`allocated`（空＝未割り当て）。同じ月・同じ項目は1行（`savePlanLine` が世帯内の既存行を更新）。
+  - **fund_uses**（新）：口座のお金を使った記録。`special_id` 空＝その月の使えるお金に足す／あり＝その大きな支払いの積立に当てる。
+  - 使えるお金の収入は**給与明細の取引から手取りを計算**（`netIncomes`：source='ocr' を日付×人でまとめ 収入−控除。同じ日の給料とボーナスは控除を額の比で分ける）。繰り越し・積立済みは保存せず計算する。
 
 ### 会計区分（division）
 `income`（収入）/ `tax`（税金・社保）/ `saving`（貯蓄）/ `fixed`（固定費）/ `variable`（変動費）
@@ -246,6 +260,7 @@ cp .env.example .env     # 任意。URL/keyを入れる（無くてもフォー�
 npm run dev              # http://localhost:5173
 npm run dev -- --host    # 同一Wi-FiのiPhoneからも開ける
 npm run check            # 型チェック（svelte-check + tsc）
+npm test                 # 単体テスト（vitest。src/**/*.test.ts）
 npm run build            # 本番ビルド確認
 ```
 
@@ -323,12 +338,17 @@ npm run build            # 本番ビルド確認
 ### 作る順番（PRを分ける。今の画面は最後まで残す）
 | 段階 | 内容 | 終わりの目安 |
 |---|---|---|
-| ① データの入れ物 | Supabase に割り当ての表を足す（SQL ファイルをオーナーが実行）。案：毎月の項目は `scheduled_payments` を広げて使う（収入/支出・日付なし＝予算だけ、を持てるように）、大きな支払いは `special_expenses` を広げる（日・積立額の手入力・くりかえし＝毎年/2年ごと/1回）、**月×項目の割り当て表**（予定・実際・割り当て）と**口座から使う額の表**を新設、`accounts` に「給料の受取／割り当てに使える」の役割を足す。既存の表・データは壊さない。ロジックは純粋関数＋単体テスト | 表があり、テストが通る |
+| ① データの入れ物 ✅ | Supabase に割り当ての表を足す（SQL ファイルをオーナーが実行）。案：毎月の項目は `scheduled_payments` を広げて使う（収入/支出・日付なし＝予算だけ、を持てるように）、大きな支払いは `special_expenses` を広げる（日・積立額の手入力・くりかえし＝毎年/2年ごと/1回）、**月×項目の割り当て表**（予定・実際・割り当て）と**口座から使う額の表**を新設、`accounts` に「給料の受取／割り当てに使える」の役割を足す。既存の表・データは壊さない。ロジックは純粋関数＋単体テスト | 表があり、テストが通る |
 | ② 今月の画面 | 試作の「今月」を実装（設定から新しい画面に切り替えて試せるようにする） | 実データで1か月分の割り当てができる |
 | ③ 大きな支払いの画面 | 試作の「大きな支払い」を実装。今の特別費の毎年の項目を引き継ぐ | 項目ごとの積立済み/あとが出る |
 | ④ 取込をつなぐ | 給与明細→「使えるお金」の確定、楽天明細→カードの「実際の額」。割り当ては変えない | 明細を入れると実際の額が入る |
 | ⑤ 年ごとの画面 | 全部の月の振り返りと年の切り替え | 過去の月がすべて見られる |
 | ⑥ 切り替えと片付け | 新しい画面を標準にし、タブを4つに。古い画面（ホームの予実・予算・定期・支払い予定・口座配分など）を片付ける。扶養の週20時間の反映 | 古い入口が無くなる |
+
+### 進み具合
+- ① 2026-11-09：`supabase/plan.sql`（列の追加＋`plan_lines`・`fund_uses`）、計算 `src/lib/plan/allocation.ts`＋テスト、`db.ts` の読み書き（`listPlanRules` / `listBigPayments` / `listPlanLines` / `savePlanLine` / `listFundUses` / `saveFundUse` / `setAccountRole` / `setAccountBalance` / `loadPlanInput`）。**オーナーが Supabase で plan.sql を実行するまで、新しい表は空**（今の画面には影響なし）。
+- オーナーの決定（2026-11-09）：**過去の月も新しい仕組みで扱う**（使い始める月の区切りは作らない。過去の月も割り当て・実際の額を直せる）。データの直し（楽天口座の種類・特別費に入っている楽天カードの請求）は**後で**。
+- 次は ②「今月」の画面。
 
 ### オーナーに用意してもらうもの（並行）
 - 住信SBIの貯金の今の残高（できれば項目ごと）

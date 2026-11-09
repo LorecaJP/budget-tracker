@@ -1,9 +1,12 @@
 // DBの型定義（schema_supabase.sql と対応。将来 SwiftData の @Model にも対応する形）
+import type { AccountRole, Direction } from './plan/allocation'
 export type AccountType = 'cash' | 'bank' | 'credit' | 'emoney'
 export type Division = 'income' | 'tax' | 'saving' | 'fixed' | 'variable'
 export type TxType = 'expense' | 'income' | 'transfer'
 export type TxSource = 'manual' | 'recurring' | 'csv' | 'ocr'
 export type ScheduledStatus = 'planned' | 'confirmed' | 'paid'   // 予定 / 確定 / 支払済
+// 作り替え§12（割り当て）の型は src/lib/plan/allocation.ts にまとめてある
+export type { AccountRole, Direction, Repeat, PlanLine, FundUse, PlanRule, BigPayment } from './plan/allocation'
 
 export interface Account {
   id: string
@@ -14,6 +17,9 @@ export interface Account {
   sort_order: number
   archived: boolean
   monthly_alloc?: number | null   // 毎月この口座へ振り分ける計画額（配分プラン・任意。列未追加なら undefined）
+  role?: AccountRole | null       // 作り替え§12：normal / salary＝給料の受け取り / savings＝割り当てに使える貯金（plan.sql。未適用なら undefined）
+  balance?: number | null         // 残高（手入力）
+  balance_date?: string | null    // 残高を入れた日
 }
 
 export interface Category {
@@ -48,11 +54,15 @@ export interface ScheduledPayment {
   name: string
   amount: number          // 確定額・円・整数
   due_date: string | null // 'YYYY-MM-DD' 引落日（単発のとき）
-  due_day: number | null  // 1-28：毎月くりかえしの引落日（休日は翌営業日に補正して表示）
+  due_day: number | null  // 毎月くりかえしの引落日（1-28。plan.sql 適用後は 1-31。休日は翌営業日に補正して表示）
   account_id: string | null   // 引落口座
   category_id: string | null
   status: ScheduledStatus
   memo: string
+  // 作り替え§12（plan.sql で追加。未適用なら undefined＝out / 0 / true とみなす）
+  direction?: Direction   // out=支払い / in=収入
+  sort_order?: number
+  active?: boolean
 }
 
 // 楽天カード明細（家計簿本体とは別管理の分析用テーブル）
