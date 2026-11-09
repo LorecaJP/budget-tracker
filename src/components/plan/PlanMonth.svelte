@@ -226,8 +226,8 @@
 
     <div class="hero">
       <span class="cap">まだ割り当てていないお金</span>
-      <span class="big" class:neg={m.free < 0}>{yen(m.free)}</span>
-      <div class="bar"><span style="width: {ratio}%"></span></div>
+      <span class="big" class:minus={m.free < 0}>{yen(m.free)}</span>
+      <div class="pbar"><span style="width: {ratio}%"></span></div>
       <div class="stats">
         <div><span class="cap">使えるお金</span><span class="v">{yen(m.sources)}</span></div>
         <div><span class="cap">割り当て済み</span><span class="v">{yen(m.allocSum)}</span></div>
@@ -365,7 +365,7 @@
       <div class="list sheetlist">
         <label class="row first"><span class="line"><span class="flabel">割り当てる額</span><input class="strong" inputmode="numeric" placeholder="未割り当て" bind:value={dAlloc} /></span></label>
         <button class="row action" onclick={() => dAlloc = String(editNeed)}><span class="line">必要な額に合わせる</span></button>
-        <button class="row action danger" onclick={() => dAlloc = ''}><span class="line">割り当てを外す</span></button>
+        <button class="row action del" onclick={() => dAlloc = ''}><span class="line">割り当てを外す</span></button>
       </div>
       <span class="foot pad {num(dAlloc) == null ? '' : (num(dAlloc) ?? 0) >= editNeed ? 'ok' : 'warn'}">
         {#if num(dAlloc) == null}必要な額は {yen(editNeed)}。まだ割り当てていません。{:else if (num(dAlloc) ?? 0) >= editNeed}必要な額 {yen(editNeed)} を用意できています。{:else}必要な額 {yen(editNeed)} まで、あと {yen(editNeed - (num(dAlloc) ?? 0))}。{/if}
@@ -431,7 +431,7 @@
       </div>
       <span class="foot pad">日を空にすると、食費のような「月の予算だけ」の項目になります。月末なら 31 と入れてください。収入の項目は、カテゴリ（ゆうき給料など）を選ぶと、給与明細を取り込んだときにその手取りに置き換わります（選ばないと明細と二重に数えます）。</span>
       {#if rId}
-        <div class="list sheetlist gap"><button class="row action danger first" onclick={removeRule}><span class="line">この項目を消す</span></button></div>
+        <div class="list sheetlist gap"><button class="row action del first" onclick={removeRule}><span class="line">この項目を消す</span></button></div>
       {/if}
     </div>
   </div>
@@ -486,9 +486,9 @@
   .cap { font-size: 12px; color: var(--pm-sec); }
   .hero > .cap { font-size: 13px; }
   .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
-  .big.neg { color: var(--pm-bad); }
-  .bar { height: 4px; border-radius: 2px; background: var(--pm-barbg); overflow: hidden; display: flex; margin-top: 10px; }
-  .bar span { background: var(--pm-bar); }
+  .big.minus { color: var(--pm-bad); }
+  .pbar { height: 4px; border-radius: 2px; background: var(--pm-barbg); overflow: hidden; display: flex; margin-top: 10px; }
+  .pbar span { background: var(--pm-bar); }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; }
   .stats > div { display: flex; flex-direction: column; gap: 2px; }
   .stats > div + div { padding-left: 12px; border-left: 0.5px solid var(--pm-sep); }
@@ -508,7 +508,7 @@
   .line { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px 10px 0; box-sizing: border-box; border-top: 0.5px solid var(--pm-sep); font-size: 17px; }
   .row.first .line { border-top: 0; }
   .row.action .line { min-height: 44px; color: var(--pm-tint); }
-  .row.action.danger .line { color: var(--pm-bad); }
+  .row.action.del .line { color: var(--pm-bad); }
   .muted { color: var(--pm-sec); min-height: 44px; }
   .date { width: 44px; flex-shrink: 0; display: flex; flex-direction: column; }
   .date b { font-size: 15px; font-weight: 600; }
